@@ -25,6 +25,10 @@ export const colors = {
 
   // Ground
   groundWarm: '#b86830',
+
+  // Utility
+  white: '#ffffff',
+  black: '#000000',
 };
 
 export const type = {

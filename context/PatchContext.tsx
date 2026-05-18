@@ -4,22 +4,31 @@ import { useRouter, useSegments } from 'expo-router';
 import { getFirstPatch } from '@/db/database';
 import type { Patch } from '@/db/database';
 
+export type ToastPayload = {
+  species: string;
+  type: 'logged' | 'new' | 'year';
+};
+
 type State = {
   patch: Patch | null;
   isLoading: boolean;
+  pendingToast: ToastPayload | null;
 };
 
 type Action =
   | { type: 'SET_PATCH'; payload: Patch | null }
-  | { type: 'UPDATE_PATCH'; payload: Partial<Patch> };
+  | { type: 'UPDATE_PATCH'; payload: Partial<Patch> }
+  | { type: 'SET_TOAST'; payload: ToastPayload | null };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'SET_PATCH':
-      return { patch: action.payload, isLoading: false };
+      return { ...state, patch: action.payload, isLoading: false };
     case 'UPDATE_PATCH':
       if (!state.patch) return state;
       return { ...state, patch: { ...state.patch, ...action.payload } };
+    case 'SET_TOAST':
+      return { ...state, pendingToast: action.payload };
     default:
       return state;
   }
@@ -31,7 +40,7 @@ const PatchContext = createContext<{
 } | null>(null);
 
 export function PatchProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { patch: null, isLoading: true });
+  const [state, dispatch] = useReducer(reducer, { patch: null, isLoading: true, pendingToast: null });
   const db = useSQLiteContext();
   const router = useRouter();
   const segments = useSegments();

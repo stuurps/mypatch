@@ -10,6 +10,7 @@ import { colors, type as t, space, radius } from '@/tokens';
 import { insertPatch } from '@/db/database';
 import type { Patch } from '@/db/database';
 import { usePatch } from '@/context/PatchContext';
+import * as ExpoCrypto from 'expo-crypto';
 
 const RADIUS_OPTIONS = [
   { value: 1 as const, label: '1 km', description: 'Garden' },
@@ -27,7 +28,7 @@ export default function OnboardingSize() {
 
   async function handleStart() {
     const patch: Patch = {
-      id: crypto.randomUUID(),
+      id: ExpoCrypto.randomUUID(),
       name: patchName ?? 'My patch',
       radius_km: selectedRadius,
       created_at: new Date().toISOString(),
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 26,
-    color: '#fff',
+    color: colors.white,
     lineHeight: 30,
   },
   barCenter: { flex: 1, alignItems: 'center' },
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 28,
     fontWeight: '500',
-    color: '#fff',
+    color: colors.white,
     lineHeight: 36,
   },
   pills: {
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   pillLabelActive: {
-    color: '#fff',
+    color: colors.white,
   },
   pillDesc: {
     ...t.meta,
@@ -164,6 +165,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.white,
   },
 });

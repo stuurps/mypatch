@@ -3,6 +3,8 @@
 
 Read `patch-project-context.md` first. This brief covers implementation only.
 
+Anything not covered here — deferred ideas, future improvements, or tasks that arise mid-build — goes in `TODO.md`. Do not add them inline to code or to this brief.
+
 ---
 
 ## Stack

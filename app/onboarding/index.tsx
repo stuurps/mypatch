@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 34,
     fontWeight: '500',
-    color: '#fff',
+    color: colors.white,
     lineHeight: 42,
   },
   subline: {
@@ -82,6 +82,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.white,
   },
 });

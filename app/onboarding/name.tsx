@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 26,
-    color: '#fff',
+    color: colors.white,
     lineHeight: 30,
   },
   barCenter: { flex: 1, alignItems: 'center' },
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 28,
     fontWeight: '500',
-    color: '#fff',
+    color: colors.white,
   },
   input: {
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.md,
     fontSize: 18,
-    color: '#fff',
+    color: colors.white,
   },
   hint: {
     ...t.body,
@@ -140,6 +140,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.white,
   },
 });
