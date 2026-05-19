@@ -2,27 +2,44 @@ import {
   View, Text, Pressable, TextInput, StyleSheet,
   useWindowDimensions, KeyboardAvoidingView,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useRef, useEffect } from 'react';
 import { SkyHero } from '@/components/SkyHero';
 import { StepDots } from '@/components/StepDots';
 import { SKY_DAY } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
+import { usePatch } from '@/context/PatchContext';
 
 export default function OnboardingName() {
   const { height } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
-  const [name, setName] = useState('');
+  const { dispatch } = usePatch();
+  const params = useLocalSearchParams<{ currentName?: string; currentRadius?: string; editing?: string }>();
+  const isEditing = params.editing === 'true';
+
+  const [name, setName] = useState(params.currentName ?? '');
   const inputRef = useRef<TextInput>(null);
 
-  // Delay focus so the slide-in animation settles first
   useEffect(() => {
     const id = setTimeout(() => inputRef.current?.focus(), 350);
     return () => clearTimeout(id);
   }, []);
 
   const canContinue = name.trim().length > 0;
+
+  function handleBack() {
+    if (isEditing) dispatch({ type: 'SET_EDITING_PATCH', payload: false });
+    router.back();
+  }
+
+  function handleContinue() {
+    const base = `/onboarding/size?patchName=${encodeURIComponent(name.trim())}`;
+    const url = isEditing
+      ? `${base}&editing=true&currentRadius=${params.currentRadius ?? '5'}`
+      : base;
+    router.push(url);
+  }
 
   return (
     <View style={styles.container}>
@@ -31,11 +48,11 @@ export default function OnboardingName() {
       <KeyboardAvoidingView style={StyleSheet.absoluteFill} behavior="padding">
         {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: top + space.md }]}>
-          <Pressable style={styles.back} onPress={() => router.back()}>
+          <Pressable style={styles.back} onPress={handleBack}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={styles.barCenter}>
-            <StepDots current={2} />
+            {!isEditing && <StepDots current={2} />}
           </View>
           <View style={{ width: 36 }} />
         </View>
@@ -44,7 +61,7 @@ export default function OnboardingName() {
 
         {/* Form */}
         <View style={[styles.content, { paddingBottom: bottom + space.xl }]}>
-          <Text style={styles.eyebrow}>Let's get started</Text>
+          <Text style={styles.eyebrow}>{isEditing ? 'Edit your patch' : 'Let\'s get started'}</Text>
           <Text style={styles.headline}>Name your patch</Text>
           <TextInput
             ref={inputRef}
@@ -55,11 +72,7 @@ export default function OnboardingName() {
             style={styles.input}
             returnKeyType="done"
             autoCapitalize="words"
-            onSubmitEditing={() => {
-              if (canContinue) {
-                router.push(`/onboarding/size?patchName=${encodeURIComponent(name.trim())}`);
-              }
-            }}
+            onSubmitEditing={() => { if (canContinue) handleContinue(); }}
           />
           <Text style={styles.hint}>
             Use the name you know it by — the reserve, the river walk, your back garden.
@@ -67,9 +80,7 @@ export default function OnboardingName() {
           <Pressable
             style={[styles.cta, !canContinue && styles.ctaDisabled]}
             disabled={!canContinue}
-            onPress={() =>
-              router.push(`/onboarding/size?patchName=${encodeURIComponent(name.trim())}`)
-            }
+            onPress={handleContinue}
           >
             <Text style={styles.ctaText}>Continue</Text>
           </Pressable>

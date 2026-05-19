@@ -107,4 +107,33 @@ Ask these before every design or product decision:
 
 ---
 
+## Feature decisions log
+
+### Firsts — shelved (May 2026)
+A "Firsts" view showing the first-ever sighting of each species was built and reverted. Implemented as a filter on the Your patch tab, it ended up feeling too similar to the existing species list — just with a date attached. The concept of "the moment you first met a species here" is emotionally right but needs a presentation that is genuinely distinct, not another list. Shelved until a clearly differentiated format emerges. The data (first sighting per species) is easily queryable when needed.
+
+### North star clarification (May 2026)
+Patch is not eBird or Merlin. Features that make it more complete as a birding tool are not the goal. Features should deepen the user's relationship with a specific place. When evaluating new ideas: does this make someone feel more connected to their patch, or does it just add data?
+
+### First 12 months focus (May 2026)
+Features should be designed for users in their first year of logging, not for users who have completed one. Any feature that only becomes meaningful after 12 months of consistent data is deprioritised. The app must feel worthwhile and coherent on day one, week one, and month three — not just once a full annual cycle has passed.
+
+This ruled out Task 14 (Seasons), which relied on comparative history ("your last swift was 6 weeks ago") that doesn't exist for new users. Phenology-aware features are fine; history-comparative features are deferred until they can degrade gracefully for early users.
+
+### Journal direction (May 2026)
+The journal tab exists but shows a coming soon placeholder. The original plan was to add date/time of day/conditions/species to the journal form — but that made it nearly identical to the log form, which raised the right question: what is the journal actually for?
+
+Agreed direction: the journal is a session-level field notebook — the narrative layer that eBird and Merlin don't have and will never want. It is not a longer log form. When it ships, journal entries will be the story of being at the patch (prose + atmosphere), with birds tagged within a session rather than logged as separate structured records. The quick-log tab is kept as the fast, low-friction data path. The journal will be the slow, intentional narrative path. These are different modes of the same activity, not duplicates.
+
+### Edit patch — implementation decisions (May 2026)
+Reuses the two onboarding screens (name → size) rather than a new form. Entry point: long-press the patch name on the home hero (400ms delay, Alert with "Edit patch" / "Cancel"). Step dots are hidden in edit mode; eyebrow on name screen reads "Edit your patch". CTA on size screen reads "Save changes".
+
+The PatchContext redirect (which normally kicks the app out of onboarding if a patch exists) is suppressed during editing via an `editingPatch: boolean` flag in state. Home screen sets the flag before navigating; size screen clears it after saving — which triggers the same redirect mechanism as the initial create flow, navigating back to `/(tabs)`. Back button on name screen clears the flag and returns to home.
+
+Conditions picker: last-used selection is persisted across log form opens within a session via a module-level variable in `log.tsx`. Resets on app restart. Not stored in SQLite — no user preference needed.
+
+Patch name is now rendered in the home hero (amber, small caps, absolute bottom-left) — this is both the visual identity label and the long-press target.
+
+---
+
 *Last updated: May 2026*

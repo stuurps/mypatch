@@ -1,5 +1,12 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+export type JournalEntry = {
+  id: string;
+  patch_id: string;
+  body: string;
+  created_at: string;
+};
+
 export type Patch = {
   id: string;
   name: string;
@@ -43,6 +50,15 @@ export async function initDatabase(db: SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_sightings_patch_id ON sightings(patch_id);
     CREATE INDEX IF NOT EXISTS idx_sightings_seen_at ON sightings(seen_at);
     CREATE INDEX IF NOT EXISTS idx_sightings_species ON sightings(species);
+
+    CREATE TABLE IF NOT EXISTS journal (
+      id TEXT PRIMARY KEY,
+      patch_id TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_journal_patch_id ON journal(patch_id);
   `);
 
   try {
@@ -65,6 +81,13 @@ export function insertPatch(db: SQLiteDatabase, patch: Patch) {
   return db.runAsync(
     'INSERT INTO patches (id, name, radius_km, created_at) VALUES (?, ?, ?, ?)',
     patch.id, patch.name, patch.radius_km, patch.created_at,
+  );
+}
+
+export function updatePatch(db: SQLiteDatabase, id: string, name: string, radius_km: number) {
+  return db.runAsync(
+    'UPDATE patches SET name = ?, radius_km = ? WHERE id = ?',
+    name, radius_km, id,
   );
 }
 
@@ -137,6 +160,64 @@ export function updateSighting(db: SQLiteDatabase, id: string, species: string, 
 
 export function deleteSighting(db: SQLiteDatabase, id: string) {
   return db.runAsync('DELETE FROM sightings WHERE id = ?', id);
+}
+
+export function insertJournalEntry(db: SQLiteDatabase, entry: JournalEntry) {
+  return db.runAsync(
+    'INSERT INTO journal (id, patch_id, body, created_at) VALUES (?, ?, ?, ?)',
+    entry.id, entry.patch_id, entry.body, entry.created_at,
+  );
+}
+
+export function getJournalEntries(db: SQLiteDatabase, patchId: string) {
+  return db.getAllAsync<JournalEntry>(
+    'SELECT * FROM journal WHERE patch_id = ? ORDER BY created_at DESC',
+    patchId,
+  );
+}
+
+export function getJournalEntry(db: SQLiteDatabase, id: string) {
+  return db.getFirstAsync<JournalEntry>('SELECT * FROM journal WHERE id = ?', id);
+}
+
+export function updateJournalEntry(db: SQLiteDatabase, id: string, body: string) {
+  return db.runAsync('UPDATE journal SET body = ? WHERE id = ?', body, id);
+}
+
+export function deleteJournalEntry(db: SQLiteDatabase, id: string) {
+  return db.runAsync('DELETE FROM journal WHERE id = ?', id);
+}
+
+export async function getYearSightingsCount(db: SQLiteDatabase, patchId: string, year: number) {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ?`,
+    patchId, String(year),
+  );
+  return row?.count ?? 0;
+}
+
+export async function getAllTimeSightingsCount(db: SQLiteDatabase, patchId: string) {
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM sightings WHERE patch_id = ?',
+    patchId,
+  );
+  return row?.count ?? 0;
+}
+
+export async function getYearJournalCount(db: SQLiteDatabase, patchId: string, year: number) {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM journal WHERE patch_id = ? AND strftime('%Y', created_at) = ?`,
+    patchId, String(year),
+  );
+  return row?.count ?? 0;
+}
+
+export async function getAllTimeJournalCount(db: SQLiteDatabase, patchId: string) {
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM journal WHERE patch_id = ?',
+    patchId,
+  );
+  return row?.count ?? 0;
 }
 
 export async function getYearSpeciesList(db: SQLiteDatabase, patchId: string, year: number) {

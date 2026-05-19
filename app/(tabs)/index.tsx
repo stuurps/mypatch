@@ -1,41 +1,32 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Animated,
+  View, Text, FlatList, Pressable, StyleSheet, Animated, Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
-import { skyForSighting, timeOfDayFromHour } from '@/skies';
+import { SKY_DAY, timeOfDayFromHour } from '@/skies';
 import type { TimeOfDay } from '@/skies';
 import { TimeOfDayIcon } from '@/components/TimeOfDayIcon';
 import { ConditionsIcon } from '@/components/ConditionsIcon';
 import type { Conditions } from '@/components/ConditionsIcon';
 
-const HOME_SKY = skyForSighting();
+const HOME_SKY = SKY_DAY;
 import { colors, type as t, space, radius } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
 import {
-  getYearSpeciesCount, getAllTimeSpeciesCount,
+  getYearSightingsCount, getAllTimeSightingsCount,
   getRecentSightings, getYearSpeciesList,
 } from '@/db/database';
 import type { Sighting } from '@/db/database';
 import { getWatchSpecies, currentSeason } from '@/data/phenology';
 import type { WatchSpecies } from '@/data/phenology';
+import { formatDate } from '@/utils/format';
 
-const HERO_HEIGHT = 300;
+const HERO_HEIGHT = 260;
 const TABBAR_HEIGHT = 49;
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const day = d.getDate();
-  const month = months[d.getMonth()];
-  if (d.getFullYear() === now.getFullYear()) return `${day} ${month}`;
-  return `${day} ${month} ${d.getFullYear()}`;
-}
 
 const TOD_LABELS: Record<TimeOfDay, string> = {
   dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night',
@@ -49,7 +40,7 @@ function getSightingPeriod(s: { time_of_day?: string | null; seen_at: string }):
 export default function PatchHome() {
   const { state, dispatch } = usePatch();
   const db = useSQLiteContext();
-  const { top, bottom } = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
 
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
@@ -64,8 +55,8 @@ export default function PatchHome() {
     if (!state.patch) return;
     const year = new Date().getFullYear();
     const [yc, atc, recent, ys] = await Promise.all([
-      getYearSpeciesCount(db, state.patch.id, year),
-      getAllTimeSpeciesCount(db, state.patch.id),
+      getYearSightingsCount(db, state.patch.id, year),
+      getAllTimeSightingsCount(db, state.patch.id),
       getRecentSightings(db, state.patch.id),
       getYearSpeciesList(db, state.patch.id, year),
     ]);
@@ -121,86 +112,122 @@ export default function PatchHome() {
 
   const toastIsAccent = activeToast?.type === 'new' || activeToast?.type === 'year';
 
+  const listHeader = useMemo(() => {
+    function onLongPressPatchName() {
+      if (!state.patch) return;
+      Alert.alert('', state.patch.name, [
+        {
+          text: 'Edit patch',
+          onPress: () => {
+            dispatch({ type: 'SET_EDITING_PATCH', payload: true });
+            router.navigate(
+              `/onboarding/name?currentName=${encodeURIComponent(state.patch!.name)}&currentRadius=${state.patch!.radius_km}&editing=true`,
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+
+    return (
+    <>
+      {/* Hero */}
+      <View style={{ height: HERO_HEIGHT }}>
+        <SkyHero bands={HOME_SKY} height={HERO_HEIGHT} showTrees={false} />
+        <Pressable
+          style={styles.heroOverlay}
+          onLongPress={onLongPressPatchName}
+          delayLongPress={400}
+        >
+          <Text style={styles.patchName}>{state.patch?.name}</Text>
+        </Pressable>
+      </View>
+
+      {/* Stats row */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statBox, styles.statBoxLeft]}>
+          <Text style={styles.statNumber}>{yearCount}</Text>
+          <Text style={styles.statLabel}>Sightings this year</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={[styles.statBox, styles.statBoxRight]}>
+          <Text style={styles.statNumber}>{allTimeCount}</Text>
+          <Text style={styles.statLabel}>All time</Text>
+        </View>
+      </View>
+
+      {/* Your patch link */}
+      <Pressable
+        style={styles.patchLink}
+        onPress={() => router.navigate('/(tabs)/poster')}
+      >
+        <Text style={styles.patchLinkText}>Sightings log</Text>
+        <Text style={styles.patchLinkChevron}>›</Text>
+      </Pressable>
+
+      {/* Keep an eye out */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Keep an eye out</Text>
+        {watchSpecies.map(ws => (
+          <View key={ws.species} style={styles.watchRow}>
+            <View style={styles.watchText}>
+              <Text style={styles.watchSpecies}>{ws.species}</Text>
+              <Text style={styles.watchHint}>{ws.hint}</Text>
+            </View>
+            <View style={[styles.watchDot, { opacity: ws.imminent ? 1 : 0.35 }]} />
+          </View>
+        ))}
+      </View>
+
+      {/* Recent sightings label */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionLabel}>Recent sightings</Text>
+      </View>
+    </>
+    );
+  }, [state.patch?.name, state.patch?.radius_km, yearCount, allTimeCount, watchSpecies]);
+
   return (
     <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: space.xl }]}
+      <FlatList
+        data={recentSightings}
+        keyExtractor={s => s.id}
+        style={styles.list}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Hero */}
-        <View style={{ height: HERO_HEIGHT }}>
-          <SkyHero bands={HOME_SKY} height={HERO_HEIGHT} showTrees={false} />
-          <Text style={[styles.patchName, { top: top + space.md }]}>
-            {state.patch?.name ?? ''}
-          </Text>
-        </View>
-
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statBox, styles.statBoxLeft]}>
-            <Text style={styles.statNumber}>{yearCount}</Text>
-            <Text style={styles.statLabel}>This year</Text>
+        contentContainerStyle={{ paddingBottom: space.xl }}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Nothing logged yet</Text>
+            <Text style={styles.emptyHint}>Tap + to record your first sighting</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={[styles.statBox, styles.statBoxRight]}>
-            <Text style={styles.statNumber}>{allTimeCount}</Text>
-            <Text style={styles.statLabel}>All time</Text>
-          </View>
-        </View>
-
-        {/* Keep an eye out */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Keep an eye out</Text>
-          {watchSpecies.map(ws => (
-            <View key={ws.species} style={styles.watchRow}>
-              <View style={styles.watchText}>
-                <Text style={styles.watchSpecies}>{ws.species}</Text>
-                <Text style={styles.watchHint}>{ws.hint}</Text>
-              </View>
-              <View style={[styles.watchDot, { opacity: ws.imminent ? 1 : 0.35 }]} />
-            </View>
-          ))}
-        </View>
-
-        {/* Recent sightings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Recent sightings</Text>
-          {recentSightings.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Nothing logged yet</Text>
-              <Text style={styles.emptyHint}>Tap + to record your first sighting</Text>
-            </View>
-          ) : (
-            recentSightings.map(s => (
-              <Pressable
-                key={s.id}
-                style={styles.sightingRow}
-                onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
-              >
-                <View style={styles.sightingMain}>
-                  <Text style={styles.sightingSpecies}>{s.species}</Text>
-                  <View style={styles.sightingMetaRow}>
-                    <TimeOfDayIcon period={getSightingPeriod(s)} size={12} color={colors.inkFaint} />
-                    <Text style={styles.sightingMeta}>
-                      {TOD_LABELS[getSightingPeriod(s)]}
-                    </Text>
-                    {s.conditions && (
-                      <ConditionsIcon condition={s.conditions as Conditions} size={12} color={colors.inkFaint} />
-                    )}
-                    <Text style={styles.sightingMeta}>
-                      · {formatDate(s.seen_at)}{s.notes ? ` · ${s.notes}` : ''}
-                    </Text>
-                  </View>
-                </View>
-                {s.count > 1 && (
-                  <Text style={styles.sightingCount}>{s.count}</Text>
+        }
+        renderItem={({ item: s }) => (
+          <Pressable
+            style={styles.sightingRow}
+            onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
+          >
+            <View style={styles.sightingMain}>
+              <Text style={styles.sightingSpecies}>{s.species}</Text>
+              <View style={styles.sightingMetaRow}>
+                <TimeOfDayIcon period={getSightingPeriod(s)} size={12} color={colors.inkFaint} />
+                <Text style={styles.sightingMeta}>
+                  {TOD_LABELS[getSightingPeriod(s)]}
+                </Text>
+                {s.conditions && (
+                  <ConditionsIcon condition={s.conditions as Conditions} size={12} color={colors.inkFaint} />
                 )}
-              </Pressable>
-            ))
-          )}
-        </View>
-      </ScrollView>
+                <Text style={styles.sightingMeta}>
+                  · {formatDate(s.seen_at)}{s.notes ? ` · ${s.notes}` : ''}
+                </Text>
+              </View>
+            </View>
+            {s.count > 1 && (
+              <Text style={styles.sightingCount}>{s.count}</Text>
+            )}
+          </Pressable>
+        )}
+      />
 
       {/* Toast */}
       {activeToast && (
@@ -222,16 +249,20 @@ export default function PatchHome() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.parchment },
-  scroll: { flex: 1 },
-  content: {},
+  list: { flex: 1 },
 
-  patchName: {
+  heroOverlay: {
     position: 'absolute',
+    bottom: space.lg,
     left: space.lg,
     right: space.lg,
-    ...t.label,
-    color: colors.amber,
+  },
+  patchName: {
     fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.amber,
   },
 
   statsRow: {
@@ -259,11 +290,36 @@ const styles = StyleSheet.create({
   statNumber: { ...t.statLarge },
   statLabel: { ...t.label },
 
+  patchLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.parchmentBorder,
+  },
+  patchLinkText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.inkLight,
+  },
+  patchLinkChevron: {
+    fontSize: 18,
+    color: colors.inkFaint,
+    lineHeight: 22,
+  },
+
   section: {
     paddingHorizontal: space.lg,
     paddingTop: space.lg,
     paddingBottom: space.sm,
     gap: 0,
+  },
+  sectionHeader: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.sm,
   },
   sectionLabel: {
     ...t.label,
@@ -292,6 +348,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: space.sm,
+    paddingHorizontal: space.lg,
     borderTopWidth: 1,
     borderTopColor: colors.parchmentBorder,
   },
@@ -303,6 +360,7 @@ const styles = StyleSheet.create({
 
   emptyState: {
     paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
     alignItems: 'center',
     gap: space.xs,
   },

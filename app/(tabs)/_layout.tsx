@@ -1,43 +1,19 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
-import { colors } from '@/tokens';
+import { PatchTabBar } from '@/components/PatchTabBar';
 
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.amber,
-        tabBarInactiveTintColor: colors.inkMid,
-        tabBarStyle: {
-          backgroundColor: colors.parchment,
-          borderTopColor: colors.parchmentBorder,
-          borderTopWidth: 1,
-          elevation: 0,
-        },
-        tabBarIcon: () => null,
-        tabBarIconStyle: { display: 'none' },
-        tabBarLabelStyle: {
-          fontSize: 13,
-          fontWeight: '500',
-        },
-        tabBarItemStyle: {
-          justifyContent: 'center',
-        },
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={props => <PatchTabBar {...props} />}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen
-        name="log"
-        options={{
-          title: '',
-          tabBarLabel: () => (
-            <Text style={{ fontSize: 22, fontWeight: '400', color: colors.amber }}>+</Text>
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="log" options={{ href: null }} />
       <Tabs.Screen name="edit" options={{ href: null }} />
-      <Tabs.Screen name="poster" options={{ title: 'Your patch' }} />
+      <Tabs.Screen name="poster" />
+      <Tabs.Screen name="journal" />
+      <Tabs.Screen name="journal-compose" options={{ href: null }} />
+      <Tabs.Screen name="journal-edit" options={{ href: null }} />
     </Tabs>
   );
 }

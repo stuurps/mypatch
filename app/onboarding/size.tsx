@@ -7,7 +7,7 @@ import { SkyHero } from '@/components/SkyHero';
 import { StepDots } from '@/components/StepDots';
 import { SKY_SUNSET } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
-import { insertPatch } from '@/db/database';
+import { insertPatch, updatePatch } from '@/db/database';
 import type { Patch } from '@/db/database';
 import { usePatch } from '@/context/PatchContext';
 import * as ExpoCrypto from 'expo-crypto';
@@ -21,21 +21,33 @@ const RADIUS_OPTIONS = [
 export default function OnboardingSize() {
   const { height } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
-  const { patchName } = useLocalSearchParams<{ patchName: string }>();
-  const [selectedRadius, setSelectedRadius] = useState<1 | 5 | 10>(5);
-  const db = useSQLiteContext();
-  const { dispatch } = usePatch();
+  const params = useLocalSearchParams<{ patchName: string; editing?: string; currentRadius?: string }>();
+  const isEditing = params.editing === 'true';
+  const initialRadius = ([1, 5, 10].includes(Number(params.currentRadius))
+    ? Number(params.currentRadius)
+    : 5) as 1 | 5 | 10;
 
-  async function handleStart() {
-    const patch: Patch = {
-      id: ExpoCrypto.randomUUID(),
-      name: patchName ?? 'My patch',
-      radius_km: selectedRadius,
-      created_at: new Date().toISOString(),
-    };
-    await insertPatch(db, patch);
-    dispatch({ type: 'SET_PATCH', payload: patch });
-    // PatchContext redirect effect handles navigation to /(tabs)
+  const [selectedRadius, setSelectedRadius] = useState<1 | 5 | 10>(initialRadius);
+  const db = useSQLiteContext();
+  const { state, dispatch } = usePatch();
+
+  async function handleConfirm() {
+    const patchName = params.patchName ?? 'My patch';
+    if (isEditing && state.patch) {
+      await updatePatch(db, state.patch.id, patchName, selectedRadius);
+      dispatch({ type: 'UPDATE_PATCH', payload: { name: patchName, radius_km: selectedRadius } });
+      // Clearing the flag triggers PatchContext redirect back to /(tabs)
+      dispatch({ type: 'SET_EDITING_PATCH', payload: false });
+    } else {
+      const patch: Patch = {
+        id: ExpoCrypto.randomUUID(),
+        name: patchName,
+        radius_km: selectedRadius,
+        created_at: new Date().toISOString(),
+      };
+      await insertPatch(db, patch);
+      dispatch({ type: 'SET_PATCH', payload: patch });
+    }
   }
 
   return (
@@ -49,7 +61,7 @@ export default function OnboardingSize() {
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={styles.barCenter}>
-            <StepDots current={3} />
+            {!isEditing && <StepDots current={3} />}
           </View>
           <View style={{ width: 36 }} />
         </View>
@@ -59,7 +71,7 @@ export default function OnboardingSize() {
         {/* Content */}
         <View style={[styles.content, { paddingBottom: bottom + space.xl }]}>
           <Text style={styles.headline}>
-            How big is{'\n'}{patchName ?? 'your patch'}?
+            How big is{'\n'}{params.patchName ?? 'your patch'}?
           </Text>
 
           <View style={styles.pills}>
@@ -82,8 +94,8 @@ export default function OnboardingSize() {
             })}
           </View>
 
-          <Pressable style={styles.cta} onPress={handleStart}>
-            <Text style={styles.ctaText}>Start watching</Text>
+          <Pressable style={styles.cta} onPress={handleConfirm}>
+            <Text style={styles.ctaText}>{isEditing ? 'Save changes' : 'Start watching'}</Text>
           </Pressable>
         </View>
       </View>

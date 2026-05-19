@@ -22,6 +22,8 @@ import type { Conditions } from '@/components/ConditionsIcon';
 
 const PHENOLOGY = new Set(getWatchSpecies(currentSeason()).map(w => w.species));
 
+let lastConditions: Conditions | null = null;
+
 function formatDateCompact(d: Date): string {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${d.getDate()} ${months[d.getMonth()]}`;
@@ -39,7 +41,7 @@ export default function LogSighting() {
   const [seenAt, setSeenAt] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => timeOfDayFromHour(new Date().getHours()));
-  const [conditions, setConditions] = useState<Conditions | null>(null);
+  const [conditions, setConditions] = useState<Conditions | null>(lastConditions);
   const [loggedSpeciesSet, setLoggedSpeciesSet] = useState<Set<string>>(new Set());
 
   useFocusEffect(
@@ -52,7 +54,7 @@ export default function LogSighting() {
       setSeenAt(now);
       setShowDatePicker(false);
       setTimeOfDay(timeOfDayFromHour(now.getHours()));
-      setConditions(null);
+      setConditions(lastConditions);
       if (!state.patch) return;
       db.getAllAsync<{ species: string }>(
         'SELECT DISTINCT species FROM sightings WHERE patch_id = ?',
@@ -218,7 +220,10 @@ export default function LogSighting() {
         {/* Conditions */}
         <View style={styles.fieldBlock}>
           <Text style={styles.fieldLabel}>Conditions (optional)</Text>
-          <ConditionsPicker value={conditions} onChange={setConditions} />
+          <ConditionsPicker
+            value={conditions}
+            onChange={c => { lastConditions = c; setConditions(c); }}
+          />
         </View>
 
         {/* Notes */}

@@ -13,12 +13,14 @@ type State = {
   patch: Patch | null;
   isLoading: boolean;
   pendingToast: ToastPayload | null;
+  editingPatch: boolean;
 };
 
 type Action =
   | { type: 'SET_PATCH'; payload: Patch | null }
   | { type: 'UPDATE_PATCH'; payload: Partial<Patch> }
-  | { type: 'SET_TOAST'; payload: ToastPayload | null };
+  | { type: 'SET_TOAST'; payload: ToastPayload | null }
+  | { type: 'SET_EDITING_PATCH'; payload: boolean };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -29,6 +31,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, patch: { ...state.patch, ...action.payload } };
     case 'SET_TOAST':
       return { ...state, pendingToast: action.payload };
+    case 'SET_EDITING_PATCH':
+      return { ...state, editingPatch: action.payload };
     default:
       return state;
   }
@@ -40,7 +44,7 @@ const PatchContext = createContext<{
 } | null>(null);
 
 export function PatchProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { patch: null, isLoading: true, pendingToast: null });
+  const [state, dispatch] = useReducer(reducer, { patch: null, isLoading: true, pendingToast: null, editingPatch: false });
   const db = useSQLiteContext();
   const router = useRouter();
   const segments = useSegments();
@@ -56,10 +60,10 @@ export function PatchProvider({ children }: { children: React.ReactNode }) {
     const inOnboarding = segments[0] === 'onboarding';
     if (!state.patch && !inOnboarding) {
       router.replace('/onboarding');
-    } else if (state.patch && inOnboarding) {
+    } else if (state.patch && inOnboarding && !state.editingPatch) {
       router.replace('/(tabs)');
     }
-  }, [state.isLoading, state.patch, segments]);
+  }, [state.isLoading, state.patch, state.editingPatch, segments]);
 
   return (
     <PatchContext.Provider value={{ state, dispatch }}>
