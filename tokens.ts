@@ -29,6 +29,7 @@ export const colors = {
   // Utility
   white: '#ffffff',
   black: '#000000',
+  red: '#c0392b',
 };
 
 export const type = {

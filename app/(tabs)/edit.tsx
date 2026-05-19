@@ -1,17 +1,15 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import * as ExpoCrypto from 'expo-crypto';
 import { SPECIES } from '@/data/species';
 import { getWatchSpecies, currentSeason } from '@/data/phenology';
-import { insertSighting, hasSpeciesBeenLogged } from '@/db/database';
-import type { Sighting } from '@/db/database';
+import { getSighting, updateSighting, deleteSighting } from '@/db/database';
 import { usePatch } from '@/context/PatchContext';
 import { colors, type as t, space, radius } from '@/tokens';
 import { timeOfDayFromHour } from '@/skies';
@@ -27,7 +25,8 @@ function formatDateCompact(d: Date): string {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-export default function LogSighting() {
+export default function EditSighting() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { state, dispatch } = usePatch();
   const db = useSQLiteContext();
   const { top, bottom } = useSafeAreaInsets();
@@ -36,30 +35,38 @@ export default function LogSighting() {
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null);
   const [count, setCount] = useState(1);
   const [notes, setNotes] = useState('');
-  const [seenAt, setSeenAt] = useState(new Date());
+  const [seenAt, setSeenAt] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => timeOfDayFromHour(new Date().getHours()));
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('day');
   const [conditions, setConditions] = useState<Conditions | null>(null);
   const [loggedSpeciesSet, setLoggedSpeciesSet] = useState<Set<string>>(new Set());
+  const [ready, setReady] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      const now = new Date();
-      setQuery('');
-      setSelectedSpecies(null);
-      setCount(1);
-      setNotes('');
-      setSeenAt(now);
-      setShowDatePicker(false);
-      setTimeOfDay(timeOfDayFromHour(now.getHours()));
-      setConditions(null);
-      if (!state.patch) return;
+  useEffect(() => {
+    if (!id || !state.patch) return;
+    Promise.all([
+      getSighting(db, id),
       db.getAllAsync<{ species: string }>(
         'SELECT DISTINCT species FROM sightings WHERE patch_id = ?',
         state.patch.id,
-      ).then(rows => setLoggedSpeciesSet(new Set(rows.map(r => r.species))));
-    }, [state.patch?.id]),
-  );
+      ),
+    ]).then(([sighting, rows]) => {
+      if (sighting) {
+        setQuery(sighting.species);
+        setSelectedSpecies(sighting.species);
+        setCount(sighting.count);
+        setNotes(sighting.notes ?? '');
+        setSeenAt(new Date(sighting.seen_at));
+        setTimeOfDay(
+          (sighting.time_of_day as TimeOfDay | null | undefined) ??
+          timeOfDayFromHour(new Date(sighting.seen_at).getHours()),
+        );
+        setConditions((sighting.conditions as Conditions | null | undefined) ?? null);
+      }
+      setLoggedSpeciesSet(new Set(rows.map(r => r.species)));
+      setReady(true);
+    });
+  }, [id, state.patch?.id]);
 
   const results = query.length >= 2 && !selectedSpecies
     ? SPECIES.filter(s => s.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
@@ -76,31 +83,31 @@ export default function LogSighting() {
     setQuery(species);
   }
 
-  async function handleAdd() {
-    if (!selectedSpecies || !state.patch) return;
-
-    const isNew = !(await hasSpeciesBeenLogged(db, state.patch.id, selectedSpecies));
-    const toastType = isNew ? 'new' : PHENOLOGY.has(selectedSpecies) ? 'year' : 'logged';
-
-    const now = new Date().toISOString();
-    const sighting: Sighting = {
-      id: ExpoCrypto.randomUUID(),
-      patch_id: state.patch.id,
-      species: selectedSpecies,
-      count,
-      notes: notes.trim() || null,
-      seen_at: seenAt.toISOString(),
-      created_at: now,
-      time_of_day: timeOfDay,
-      conditions: conditions,
-    };
-
-    await insertSighting(db, sighting);
-    dispatch({ type: 'SET_TOAST', payload: { species: selectedSpecies, type: toastType } });
+  async function handleSave() {
+    if (!selectedSpecies || !id) return;
+    await updateSighting(db, id, selectedSpecies, count, notes.trim() || null, seenAt.toISOString(), timeOfDay, conditions);
     router.navigate('/(tabs)');
   }
 
-  const canAdd = !!selectedSpecies;
+  function confirmDelete() {
+    Alert.alert(
+      'Remove this sighting?',
+      "This can't be undone.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: handleDelete },
+      ],
+    );
+  }
+
+  async function handleDelete() {
+    if (!id || !selectedSpecies) return;
+    await deleteSighting(db, id);
+    dispatch({ type: 'SET_TOAST', payload: { species: selectedSpecies, type: 'deleted' } });
+    router.navigate('/(tabs)');
+  }
+
+  const canSave = !!selectedSpecies && ready;
 
   return (
     <KeyboardAvoidingView
@@ -112,7 +119,7 @@ export default function LogSighting() {
         <Pressable style={styles.backBtn} onPress={() => router.navigate('/(tabs)')}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Log a sighting</Text>
+        <Text style={styles.headerTitle}>Edit sighting</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -236,13 +243,18 @@ export default function LogSighting() {
           />
         </View>
 
-        {/* CTA */}
+        {/* Save CTA */}
         <Pressable
-          style={[styles.cta, !canAdd && styles.ctaDisabled]}
-          onPress={handleAdd}
-          disabled={!canAdd}
+          style={[styles.cta, !canSave && styles.ctaDisabled]}
+          onPress={handleSave}
+          disabled={!canSave}
         >
-          <Text style={styles.ctaText}>Add to patch</Text>
+          <Text style={styles.ctaText}>Save changes</Text>
+        </Pressable>
+
+        {/* Delete */}
+        <Pressable style={styles.deleteBtn} onPress={confirmDelete}>
+          <Text style={styles.deleteBtnText}>Remove sighting</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -291,9 +303,7 @@ const styles = StyleSheet.create({
   fieldBlock: {
     gap: space.xs,
   },
-  fieldLabel: {
-    ...t.label,
-  },
+  fieldLabel: { ...t.label },
 
   input: {
     backgroundColor: colors.white,
@@ -355,9 +365,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnDim: {
-    opacity: 0.35,
-  },
+  stepBtnDim: { opacity: 0.35 },
   stepBtnText: {
     fontSize: 20,
     color: colors.white,
@@ -404,12 +412,20 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     alignItems: 'center',
   },
-  ctaDisabled: {
-    opacity: 0.35,
-  },
+  ctaDisabled: { opacity: 0.35 },
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
+  },
+
+  deleteBtn: {
+    alignItems: 'center',
+    paddingVertical: space.sm,
+  },
+  deleteBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.red,
   },
 });

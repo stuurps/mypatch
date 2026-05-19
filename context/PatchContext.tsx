@@ -6,7 +6,7 @@ import type { Patch } from '@/db/database';
 
 export type ToastPayload = {
   species: string;
-  type: 'logged' | 'new' | 'year';
+  type: 'logged' | 'new' | 'year' | 'deleted';
 };
 
 type State = {

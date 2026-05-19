@@ -15,6 +15,8 @@ export type Sighting = {
   notes: string | null;
   seen_at: string;
   created_at: string;
+  time_of_day?: string | null;
+  conditions?: string | null;
 };
 
 export async function initDatabase(db: SQLiteDatabase) {
@@ -42,6 +44,17 @@ export async function initDatabase(db: SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_sightings_seen_at ON sightings(seen_at);
     CREATE INDEX IF NOT EXISTS idx_sightings_species ON sightings(species);
   `);
+
+  try {
+    await db.execAsync('ALTER TABLE sightings ADD COLUMN time_of_day TEXT');
+  } catch {
+    // column already exists — safe to ignore
+  }
+  try {
+    await db.execAsync('ALTER TABLE sightings ADD COLUMN conditions TEXT');
+  } catch {
+    // column already exists — safe to ignore
+  }
 }
 
 export function getFirstPatch(db: SQLiteDatabase) {
@@ -57,9 +70,10 @@ export function insertPatch(db: SQLiteDatabase, patch: Patch) {
 
 export function insertSighting(db: SQLiteDatabase, sighting: Sighting) {
   return db.runAsync(
-    'INSERT INTO sightings (id, patch_id, species, count, notes, seen_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO sightings (id, patch_id, species, count, notes, seen_at, created_at, time_of_day, conditions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     sighting.id, sighting.patch_id, sighting.species, sighting.count,
     sighting.notes ?? null, sighting.seen_at, sighting.created_at,
+    sighting.time_of_day ?? null, sighting.conditions ?? null,
   );
 }
 
@@ -93,6 +107,36 @@ export async function hasSpeciesBeenLogged(db: SQLiteDatabase, patchId: string, 
     patchId, species,
   );
   return (row?.count ?? 0) > 0;
+}
+
+export async function getPatchSpecies(db: SQLiteDatabase, patchId: string, year?: number): Promise<string[]> {
+  if (year !== undefined) {
+    const rows = await db.getAllAsync<{ species: string }>(
+      `SELECT DISTINCT species FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ? ORDER BY species ASC`,
+      patchId, String(year),
+    );
+    return rows.map(r => r.species);
+  }
+  const rows = await db.getAllAsync<{ species: string }>(
+    'SELECT DISTINCT species FROM sightings WHERE patch_id = ? ORDER BY species ASC',
+    patchId,
+  );
+  return rows.map(r => r.species);
+}
+
+export function getSighting(db: SQLiteDatabase, id: string) {
+  return db.getFirstAsync<Sighting>('SELECT * FROM sightings WHERE id = ?', id);
+}
+
+export function updateSighting(db: SQLiteDatabase, id: string, species: string, count: number, notes: string | null, seenAt: string, timeOfDay?: string | null, conditions?: string | null) {
+  return db.runAsync(
+    'UPDATE sightings SET species = ?, count = ?, notes = ?, seen_at = ?, time_of_day = ?, conditions = ? WHERE id = ?',
+    species, count, notes, seenAt, timeOfDay ?? null, conditions ?? null, id,
+  );
+}
+
+export function deleteSighting(db: SQLiteDatabase, id: string) {
+  return db.runAsync('DELETE FROM sightings WHERE id = ?', id);
 }
 
 export async function getYearSpeciesList(db: SQLiteDatabase, patchId: string, year: number) {

@@ -1,15 +1,18 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Animated,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
-import { SKY_SUNRISE, SKY_DAY, SKY_SUNSET } from '@/skies';
+import { skyForSighting, timeOfDayFromHour } from '@/skies';
+import type { TimeOfDay } from '@/skies';
+import { TimeOfDayIcon } from '@/components/TimeOfDayIcon';
+import { ConditionsIcon } from '@/components/ConditionsIcon';
+import type { Conditions } from '@/components/ConditionsIcon';
 
-const SKIES = [SKY_SUNRISE, SKY_DAY, SKY_SUNSET];
-const HOME_SKY = SKIES[Math.floor(Math.random() * SKIES.length)];
+const HOME_SKY = skyForSighting();
 import { colors, type as t, space, radius } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
@@ -22,7 +25,7 @@ import { getWatchSpecies, currentSeason } from '@/data/phenology';
 import type { WatchSpecies } from '@/data/phenology';
 
 const HERO_HEIGHT = 300;
-const FAB_SIZE = 56;
+const TABBAR_HEIGHT = 49;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -32,6 +35,15 @@ function formatDate(iso: string): string {
   const month = months[d.getMonth()];
   if (d.getFullYear() === now.getFullYear()) return `${day} ${month}`;
   return `${day} ${month} ${d.getFullYear()}`;
+}
+
+const TOD_LABELS: Record<TimeOfDay, string> = {
+  dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night',
+};
+
+function getSightingPeriod(s: { time_of_day?: string | null; seen_at: string }): TimeOfDay {
+  if (s.time_of_day) return s.time_of_day as TimeOfDay;
+  return timeOfDayFromHour(new Date(s.seen_at).getHours());
 }
 
 export default function PatchHome() {
@@ -48,7 +60,7 @@ export default function PatchHome() {
   const toastAnim = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     if (!state.patch) return;
     const year = new Date().getFullYear();
     const [yc, atc, recent, ys] = await Promise.all([
@@ -61,11 +73,13 @@ export default function PatchHome() {
     setAllTimeCount(atc);
     setRecentSightings(recent);
     setYearSpecies(ys);
-  }
-
-  useEffect(() => {
-    loadData();
   }, [state.patch?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   useEffect(() => {
     if (!state.pendingToast) return;
@@ -101,6 +115,7 @@ export default function PatchHome() {
   function toastMessage(payload: ToastPayload): string {
     if (payload.type === 'logged') return `${payload.species} logged`;
     if (payload.type === 'new') return `${payload.species} — new for your patch`;
+    if (payload.type === 'deleted') return `${payload.species} removed`;
     return `${payload.species} — first of the year`;
   }
 
@@ -110,7 +125,7 @@ export default function PatchHome() {
     <View style={styles.root}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + FAB_SIZE + space.xl }]}
+        contentContainerStyle={[styles.content, { paddingBottom: space.xl }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero */}
@@ -158,36 +173,41 @@ export default function PatchHome() {
             </View>
           ) : (
             recentSightings.map(s => (
-              <View key={s.id} style={styles.sightingRow}>
+              <Pressable
+                key={s.id}
+                style={styles.sightingRow}
+                onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
+              >
                 <View style={styles.sightingMain}>
                   <Text style={styles.sightingSpecies}>{s.species}</Text>
-                  <Text style={styles.sightingMeta}>
-                    {formatDate(s.seen_at)}{s.notes ? ` · ${s.notes}` : ''}
-                  </Text>
+                  <View style={styles.sightingMetaRow}>
+                    <TimeOfDayIcon period={getSightingPeriod(s)} size={12} color={colors.inkFaint} />
+                    <Text style={styles.sightingMeta}>
+                      {TOD_LABELS[getSightingPeriod(s)]}
+                    </Text>
+                    {s.conditions && (
+                      <ConditionsIcon condition={s.conditions as Conditions} size={12} color={colors.inkFaint} />
+                    )}
+                    <Text style={styles.sightingMeta}>
+                      · {formatDate(s.seen_at)}{s.notes ? ` · ${s.notes}` : ''}
+                    </Text>
+                  </View>
                 </View>
                 {s.count > 1 && (
                   <Text style={styles.sightingCount}>{s.count}</Text>
                 )}
-              </View>
+              </Pressable>
             ))
           )}
         </View>
       </ScrollView>
-
-      {/* FAB */}
-      <Pressable
-        style={[styles.fab, { bottom: bottom + space.lg }]}
-        onPress={() => router.push('/(tabs)/log')}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </Pressable>
 
       {/* Toast */}
       {activeToast && (
         <Animated.View
           style={[
             styles.toast,
-            { bottom: bottom + space.lg + FAB_SIZE + space.sm },
+            { bottom: bottom + TABBAR_HEIGHT + space.md },
             toastIsAccent ? styles.toastAccent : styles.toastDark,
             { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] },
           ]}
@@ -217,6 +237,9 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     backgroundColor: colors.parchment,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    gap: space.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.parchmentBorder,
   },
@@ -225,14 +248,14 @@ const styles = StyleSheet.create({
     paddingVertical: space.lg,
     alignItems: 'center',
     gap: space.xs,
+    backgroundColor: colors.white,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.parchmentBorder,
   },
-  statBoxLeft: { paddingLeft: space.lg },
-  statBoxRight: { paddingRight: space.lg },
-  statDivider: {
-    width: 1,
-    marginVertical: space.md,
-    backgroundColor: colors.parchmentBorder,
-  },
+  statBoxLeft: {},
+  statBoxRight: {},
+  statDivider: { display: 'none' },
   statNumber: { ...t.statLarge },
   statLabel: { ...t.label },
 
@@ -274,6 +297,7 @@ const styles = StyleSheet.create({
   },
   sightingMain: { flex: 1, gap: 2 },
   sightingSpecies: { ...t.speciesName },
+  sightingMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sightingMeta: { ...t.meta },
   sightingCount: { ...t.meta, color: colors.inkMid, marginLeft: space.sm },
 
@@ -284,28 +308,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { ...t.body, color: colors.inkMid },
   emptyHint: { ...t.meta, color: colors.inkFaint },
-
-  fab: {
-    position: 'absolute',
-    alignSelf: 'center',
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
-    backgroundColor: colors.amber,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  fabIcon: {
-    fontSize: 28,
-    color: colors.white,
-    lineHeight: 32,
-    fontWeight: '300',
-  },
 
   toast: {
     position: 'absolute',
