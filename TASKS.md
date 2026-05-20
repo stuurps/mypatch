@@ -451,7 +451,7 @@ Tap any species tile in the patch photo grid to see the full history of that bir
 
 ---
 
-## Task 16 — Today's log grouping
+## Task 16 — Today's log grouping ✅
 
 A minimal change to the home screen that makes it clear what you've logged in the current visit. Focus group users were logging duplicates because they couldn't see their today list at a glance. Solution: group today's sightings under a `Today` header at the top of the recent list, and show a quiet species count for the day.
 
@@ -462,10 +462,10 @@ A minimal change to the home screen that makes it clear what you've logged in th
 - No schema changes — `seen_at` already carries the date
 
 **`app/(tabs)/index.tsx`:**
-- [ ] In the sightings render logic, partition the list: `todaySightings` (seen_at date = today) and `earlierSightings`
-- [ ] If `todaySightings.length > 0`: render `Today` label (amber, `type.label` size) then today's rows, then earlier rows
-- [ ] Below the stats row: if distinct species logged today > 0, render `[n] species today` in `inkFaint`, `type.label` — hidden otherwise
-- [ ] Helper: `isToday(dateStr: string): boolean` — compare date portion only, no time
+- [x] In the sightings render logic, partition the list: `todaySightings` (seen_at date = today) and `earlierSightings`
+- [x] If `todaySightings.length > 0`: render `Today` label (amber, `type.label` size) then today's rows, then earlier rows
+- [x] Below the stats row: if distinct species logged today > 0, render `[n] species today` in `inkFaint`, `type.label` — hidden otherwise
+- [x] Helper: `isToday(dateStr: string): boolean` — compare date portion only, no time
 
 **Done when:** A "Today" header and today's sightings appear at the top of the recent list when the user has logged something today. A quiet today species count shows below the stats row. No regressions when there are no today sightings.
 
@@ -507,24 +507,112 @@ These rotate on each app open, not on a timer. Pick from a pool, cycle determini
 
 ## Focus group backlog
 
-Conducted May 2026 — 7 participants. Ranked by demand × product fit × first-12-months value.
+Wave 1: May 2026 — 7 participants.
+Wave 2: May 2026 — 4 personas (simulated from product context + Wave 1 signals).
 
-| Priority | Feature | Status |
-|---|---|---|
-| P0 | Edit patch name + size | Task 11 — next up |
-| P0 | Conditions picker — remember last selection | Folded into Task 11 |
-| P1 | Species detail page | Task 15 — scoped |
-| P1 | Today's log grouping on home | Task 16 — scoped |
-| P1 | Second patch (max 2) | Not yet scoped |
-| P2 | Sighting history browse by month | Month-grouped scroll, not full calendar |
-| P2 | Journal — first version | Plain text session entry; direction agreed in context doc |
-| P2 | iOS widget — species count | Post-journal; requires native widget target |
-| P3 | eBird import | Onboarding v2 only; history-dependent |
-| P3 | Species photo / ID hint | Out of scope — send users to Merlin |
-| P3 | Auto-save patch photo monthly | Manual screenshot is sufficient |
-| P3 | Family / multi-user | Different product surface; not v1 or v2 |
+Ranked by impact (deepens patch relationship × first-12-months value) × build effort.
+
+| Priority | Feature | Status | Effort |
+|---|---|---|---|
+| P0 | Edit patch name + size | ✅ Task 11 | — |
+| P0 | Conditions picker — remember last selection | ✅ Task 11 | — |
+| P1 | Today's log grouping on home | ✅ Task 16 | — |
+| P1 | Species detail page | Task 15 — scoped | M |
+| P1 | Second patch (max 2) | Task 18 — scoped | L |
+| P1 | Journal — first version | Task 19 — scoped | L |
+| P1 | Share patch photo | Bundle with Task 15 | S |
+| P2 | Month stats line on home ("X species this month") | Bundle with home polish | S |
+| P2 | Sighting history browse by month | Not yet scoped | M |
+| P2 | Session summary (post-log closing moment) | Not yet scoped | M |
+| P2 | iOS widget — species count | Post-journal; requires native target | L |
+| P3 | eBird import | v2 only; history-dependent | XL |
+| P3 | Species photo / ID hint | Out of scope — send users to Merlin | — |
+| P3 | Auto-save patch photo monthly | Manual screenshot is sufficient | — |
+| P3 | Family / multi-user | Different product surface; not v1 or v2 | — |
 
 ---
 
-*Tasks version: 1.5 — May 2026*
+## Task 18 — Second patch
+
+Allow users to create and switch between two patches. Realises the "max 2 patches" product decision — confirmed by focus group Wave 2 (2/4 personas). Entry point deliberately simple: the constraint is intentional and should feel like a feature, not a limitation.
+
+**Design decisions:**
+- Max 2 patches, enforced in UI (add button disappears at 2)
+- No patch mixing — all counts, sightings, and journal entries are scoped to the active patch
+- Patch switcher in the home screen hero: subtle tap target showing current patch name, tapping reveals a sheet with both patches + "New patch" (disabled if 2 exist)
+- Creating a second patch reuses the onboarding name + size flow (same as Task 3 + Task 11 edit pattern)
+- On switch: update `activePatchId` in context, all queries re-run for the new patch
+- Sightings, species, and journal data are never shared between patches
+
+**`db/database.ts`:**
+- [ ] No schema changes needed — `patches` table already supports multiple rows; all sighting/journal queries already filter by `patch_id`
+- [ ] Add `getPatches(db): Promise<Patch[]>` — `SELECT * FROM patches ORDER BY created_at ASC`
+
+**`context/PatchContext.tsx`:**
+- [ ] Add `patches: Patch[]` to state — all patches, loaded on init
+- [ ] Add `SET_PATCHES` action
+- [ ] `LOAD_PATCH` on init: load all patches; set `patch` to most-recently-used (or first)
+- [ ] Add `switchPatch(id)` action — updates `patch` in state; all downstream queries re-run via `useFocusEffect`
+- [ ] Add `activePatchId` persistence — store in SQLite `settings` table (or AsyncStorage as a lightweight alternative) so selected patch survives restart
+
+**`app/(tabs)/index.tsx`:**
+- [ ] Patch name in hero becomes a `Pressable` (currently long-press only) — short tap opens patch switcher sheet, long-press retains edit patch action
+- [ ] Patch switcher: bottom sheet (or `ActionSheetIOS` on iOS) listing patch names, checkmark on active, "Add patch" row at bottom (disabled + greyed at 2)
+- [ ] On "Add patch": dispatch `SET_EDITING_PATCH: false`, navigate to `/onboarding/name` with no pre-fill (creates a new patch)
+- [ ] After second patch created, onboarding's size.tsx confirm flow should `SET_ACTIVE_PATCH` to the new patch (not just the first one)
+
+**`app/onboarding/size.tsx`:**
+- [ ] On confirm with an existing patch already in SQLite: `insertPatch` (new record) + `SET_PATCHES` + `switchPatch` to new patch ID
+
+**Done when:** User can create a second patch from the home screen. Switching patches correctly scopes all data. Counts, sightings, and the patch photo all update to reflect the active patch. Attempting to add a third patch is gracefully blocked.
+
+---
+
+## Task 19 — Journal MVP
+
+The differentiating feature — the narrative layer that eBird and Merlin don't have and never will. A session-level field notebook: the story of being somewhere, not structured data. Confirmed as the most anticipated unbuilt feature (2/4 Wave 2 personas; design-target user explicitly named it).
+
+**Design decisions:**
+- One journal entry = one session at the patch (morning walk, afternoon sit, etc.)
+- Free prose text only — no species fields, no conditions picker. The quick-log tab is the data path; the journal is the story path. These are different modes.
+- Entry creation: Journal tab `+` button → compose screen with a single large text area, no chrome
+- Header: date + time of entry (auto, read-only) + patch name
+- No title field — the date is the title
+- Entries list: reverse-chronological, each row shows date + first line of text (truncated)
+- No editing from the list view — tap to open full entry, edit inline
+- Delete via long-press on entry row (confirmation prompt)
+- DB schema already exists (`journal` table with `body`, `patch_id`, `created_at`)
+
+**`db/database.ts`:**
+- [ ] Add `insertJournalEntry(db, patchId, body): Promise<void>`
+- [ ] Add `getJournalEntries(db, patchId): Promise<JournalEntry[]>` — `SELECT * FROM journal WHERE patch_id = ? ORDER BY created_at DESC`
+- [ ] Add `updateJournalEntry(db, id, body): Promise<void>`
+- [ ] Add `deleteJournalEntry(db, id): Promise<void>`
+
+**`app/(tabs)/journal.tsx`:**
+- [ ] Remove coming-soon placeholder
+- [ ] SkyHero header — `SKY_DAY` (neutral, readable; user is reflecting not watching)
+- [ ] "Your journal" heading, quiet subline: "The story of your patch"
+- [ ] `+` button top-right → navigates to `/(tabs)/journal-compose`
+- [ ] `FlatList` of entries: date (amber, small caps) + first line of body (inkMid, truncated to 1 line)
+- [ ] Tap any entry → `/(tabs)/journal-edit?id=[id]`
+- [ ] Empty state: quiet prompt — "Your first entry is waiting."
+- [ ] `useFocusEffect` reload
+
+**`app/(tabs)/journal-compose.tsx`:** (dormant file, activate)
+- [ ] Header: forest green, back chevron, date + time (auto, displayed not editable)
+- [ ] Single `TextInput`, multiline, fills available height, placeholder "What did you find today?"
+- [ ] No save button — auto-save on back (if body non-empty, call `insertJournalEntry`)
+- [ ] If body is empty on back: discard silently
+
+**`app/(tabs)/journal-edit.tsx`:** (dormant file, activate)
+- [ ] Same layout as compose; pre-filled with existing body
+- [ ] Auto-save on back (calls `updateJournalEntry`)
+- [ ] Long-press anywhere → "Delete entry" action sheet → confirmation → `deleteJournalEntry` → pop to list
+
+**Done when:** Journal tab shows a list of entries (or quiet empty state). Tapping `+` opens a compose screen. Writing and navigating back saves the entry. Entries are editable. Entries are deletable with confirmation. All scoped to active patch.
+
+---
+
+*Tasks version: 2.0 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*

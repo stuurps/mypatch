@@ -32,9 +32,46 @@ const TOD_LABELS: Record<TimeOfDay, string> = {
   dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night',
 };
 
+function isToday(dateStr: string): boolean {
+  const today = new Date();
+  const d = new Date(dateStr);
+  return (
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate()
+  );
+}
+
 function getSightingPeriod(s: { time_of_day?: string | null; seen_at: string }): TimeOfDay {
   if (s.time_of_day) return s.time_of_day as TimeOfDay;
   return timeOfDayFromHour(new Date(s.seen_at).getHours());
+}
+
+function renderSightingRow(s: Sighting) {
+  return (
+    <Pressable
+      key={s.id}
+      style={styles.sightingRow}
+      onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
+    >
+      <View style={styles.sightingMain}>
+        <Text style={styles.sightingSpecies}>{s.species}</Text>
+        <View style={styles.sightingMetaRow}>
+          <TimeOfDayIcon period={getSightingPeriod(s)} size={12} color={colors.inkFaint} />
+          <Text style={styles.sightingMeta}>{TOD_LABELS[getSightingPeriod(s)]}</Text>
+          {s.conditions && (
+            <ConditionsIcon condition={s.conditions as Conditions} size={12} color={colors.inkFaint} />
+          )}
+          <Text style={styles.sightingMeta}>
+            · {formatDate(s.seen_at)}{s.notes ? ` · ${s.notes}` : ''}
+          </Text>
+        </View>
+      </View>
+      {s.count > 1 && (
+        <Text style={styles.sightingCount}>{s.count}</Text>
+      )}
+    </Pressable>
+  );
 }
 
 export default function PatchHome() {
@@ -103,6 +140,10 @@ export default function PatchHome() {
       .slice(0, 3);
   }, [yearSpecies]);
 
+  const todaySightings = useMemo(() => recentSightings.filter(s => isToday(s.seen_at)), [recentSightings]);
+  const earlierSightings = useMemo(() => recentSightings.filter(s => !isToday(s.seen_at)), [recentSightings]);
+  const todaySpeciesCount = useMemo(() => new Set(todaySightings.map(s => s.species)).size, [todaySightings]);
+
   function toastMessage(payload: ToastPayload): string {
     if (payload.type === 'logged') return `${payload.species} logged`;
     if (payload.type === 'new') return `${payload.species} — new for your patch`;
@@ -156,6 +197,13 @@ export default function PatchHome() {
         </View>
       </View>
 
+      {/* Species today */}
+      {todaySpeciesCount > 0 && (
+        <View style={styles.todayBar}>
+          <Text style={styles.todayBarText}>{todaySpeciesCount} species today</Text>
+        </View>
+      )}
+
       {/* Your patch link */}
       <Pressable
         style={styles.patchLink}
@@ -179,54 +227,44 @@ export default function PatchHome() {
         ))}
       </View>
 
-      {/* Recent sightings label */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionLabel}>Recent sightings</Text>
-      </View>
+      {/* Empty state */}
+      {recentSightings.length === 0 && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Nothing logged yet</Text>
+          <Text style={styles.emptyHint}>Tap + to record your first sighting</Text>
+        </View>
+      )}
+
+      {/* Today's sightings */}
+      {todaySightings.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.todaySectionLabel}>Today</Text>
+          </View>
+          {todaySightings.map(s => renderSightingRow(s))}
+        </>
+      )}
+
+      {/* Earlier sightings label */}
+      {earlierSightings.length > 0 && (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>Recent sightings</Text>
+        </View>
+      )}
     </>
     );
-  }, [state.patch?.name, state.patch?.radius_km, yearCount, allTimeCount, watchSpecies]);
+  }, [state.patch?.name, state.patch?.radius_km, yearCount, allTimeCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
 
   return (
     <View style={styles.root}>
       <FlatList
-        data={recentSightings}
+        data={earlierSightings}
         keyExtractor={s => s.id}
         style={styles.list}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: space.xl }}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Nothing logged yet</Text>
-            <Text style={styles.emptyHint}>Tap + to record your first sighting</Text>
-          </View>
-        }
-        renderItem={({ item: s }) => (
-          <Pressable
-            style={styles.sightingRow}
-            onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
-          >
-            <View style={styles.sightingMain}>
-              <Text style={styles.sightingSpecies}>{s.species}</Text>
-              <View style={styles.sightingMetaRow}>
-                <TimeOfDayIcon period={getSightingPeriod(s)} size={12} color={colors.inkFaint} />
-                <Text style={styles.sightingMeta}>
-                  {TOD_LABELS[getSightingPeriod(s)]}
-                </Text>
-                {s.conditions && (
-                  <ConditionsIcon condition={s.conditions as Conditions} size={12} color={colors.inkFaint} />
-                )}
-                <Text style={styles.sightingMeta}>
-                  · {formatDate(s.seen_at)}{s.notes ? ` · ${s.notes}` : ''}
-                </Text>
-              </View>
-            </View>
-            {s.count > 1 && (
-              <Text style={styles.sightingCount}>{s.count}</Text>
-            )}
-          </Pressable>
-        )}
+        renderItem={({ item: s }) => renderSightingRow(s)}
       />
 
       {/* Toast */}
@@ -357,6 +395,24 @@ const styles = StyleSheet.create({
   sightingMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sightingMeta: { ...t.meta },
   sightingCount: { ...t.meta, color: colors.inkMid, marginLeft: space.sm },
+
+  todayBar: {
+    paddingHorizontal: space.lg,
+    paddingVertical: space.xs,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.parchmentBorder,
+    backgroundColor: colors.parchment,
+  },
+  todayBarText: {
+    ...t.label,
+    color: colors.inkFaint,
+  },
+  todaySectionLabel: {
+    ...t.label,
+    color: colors.amber,
+    marginBottom: space.md,
+  },
 
   emptyState: {
     paddingVertical: space.xl,
