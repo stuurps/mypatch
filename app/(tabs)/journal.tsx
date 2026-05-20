@@ -12,11 +12,39 @@ import { getYearJournalCount, getAllTimeJournalCount } from '@/db/database';
 const JOURNAL_SKY = SKY_DAY;
 const HERO_HEIGHT = 260;
 
+const PHRASES = [
+  "Your patch is waiting",
+  "What's out there today?",
+  "Every visit counts",
+  "Quiet eyes, open ears",
+  "You know this place",
+  "The birds are ahead of you",
+  "Log what you find",
+];
+let phraseIndexCounter = 0;
+
+function greetingText(patchName: string): string {
+  const h = new Date().getHours();
+  let period: string;
+  if (h >= 5 && h <= 11) period = 'Morning';
+  else if (h >= 12 && h <= 16) period = 'Afternoon';
+  else if (h >= 17 && h <= 20) period = 'Evening';
+  else period = 'Night';
+  return `${period} on ${patchName}`;
+}
+
+function nextPhrase(): string {
+  const phrase = PHRASES[phraseIndexCounter % PHRASES.length];
+  phraseIndexCounter++;
+  return phrase;
+}
+
 export default function JournalScreen() {
   const { bottom } = useSafeAreaInsets();
   const { state } = usePatch();
   const db = useSQLiteContext();
 
+  const [phrase] = useState(() => nextPhrase());
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
 
@@ -37,8 +65,9 @@ export default function JournalScreen() {
   return (
     <View style={styles.root}>
       <SkyHero bands={JOURNAL_SKY} height={HERO_HEIGHT} showTrees={false}>
-        <View style={[styles.heroContent, { paddingBottom: space.lg }]}>
-          <Text style={styles.patchName}>{state.patch?.name}</Text>
+        <View style={styles.heroGreeting}>
+          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '')}</Text>
+          <Text style={styles.greetingPhrase}>{phrase}</Text>
         </View>
       </SkyHero>
 
@@ -72,15 +101,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchment,
   },
 
-  heroContent: {
+  heroGreeting: {
+    alignItems: 'center',
     paddingHorizontal: space.lg,
+    paddingBottom: space.xl,
+    gap: 6,
   },
-  patchName: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.amber,
+  greetingLine: {
+    fontSize: 28,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  greetingPhrase: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.55)',
+    textAlign: 'center',
   },
 
   statsRow: {
