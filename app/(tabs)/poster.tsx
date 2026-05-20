@@ -6,13 +6,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router } from 'expo-router';
 import { SKY_SUNRISE } from '@/skies';
+import { SkyHero } from '@/components/SkyHero';
 import { usePatch } from '@/context/PatchContext';
-import { getPatchSpecies } from '@/db/database';
+import {
+  getPatchSpeciesWithCounts, getPatchSpecies,
+  getAllTimeSightingsCount, getFirstSightingDate,
+} from '@/db/database';
 import { colors, type as t, space, radius } from '@/tokens';
+import { formatSince } from '@/utils/format';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const TILE_GAP = space.sm;
 const TILE_COLS = 3;
+const HERO_HEIGHT = 220;
+
+type SpeciesStat = { species: string; record_count: number };
 
 export default function YourPatch() {
   const { state } = usePatch();
@@ -21,102 +29,114 @@ export default function YourPatch() {
   const { width } = useWindowDimensions();
 
   const [filter, setFilter] = useState<'all' | 'year'>('all');
-  const [allSpecies, setAllSpecies] = useState<string[]>([]);
+  const [allSpecies, setAllSpecies] = useState<SpeciesStat[]>([]);
   const [yearSpecies, setYearSpecies] = useState<Set<string>>(new Set());
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [firstSeen, setFirstSeen] = useState<string | null>(null);
 
   const tileWidth = (width - space.md * 2 - TILE_GAP * (TILE_COLS - 1)) / TILE_COLS;
 
   useEffect(() => {
     if (!state.patch) return;
     Promise.all([
-      getPatchSpecies(db, state.patch.id),
+      getPatchSpeciesWithCounts(db, state.patch.id),
       getPatchSpecies(db, state.patch.id, CURRENT_YEAR),
-    ]).then(([all, year]) => {
+      getAllTimeSightingsCount(db, state.patch.id),
+      getFirstSightingDate(db, state.patch.id),
+    ]).then(([all, year, records, first]) => {
       setAllSpecies(all);
       setYearSpecies(new Set(year));
+      setTotalRecords(records);
+      setFirstSeen(first);
     });
   }, [state.patch?.id]);
 
   const displaySpecies = filter === 'year'
-    ? allSpecies.filter(s => yearSpecies.has(s))
+    ? allSpecies.filter(s => yearSpecies.has(s.species))
     : allSpecies;
 
   const sorted = [...displaySpecies].sort((a, b) => {
-    const aAmber = yearSpecies.has(a);
-    const bAmber = yearSpecies.has(b);
+    const aAmber = yearSpecies.has(a.species);
+    const bAmber = yearSpecies.has(b.species);
     if (aAmber !== bAmber) return aAmber ? -1 : 1;
-    return a.localeCompare(b);
+    return a.species.localeCompare(b.species);
   });
 
-  const count = sorted.length;
+  const statsLine = firstSeen
+    ? `${totalRecords} records · since ${formatSince(firstSeen)}`
+    : totalRecords > 0 ? `${totalRecords} records` : null;
+
+  const header = (
+    <>
+      <View style={{ height: HERO_HEIGHT }}>
+        <SkyHero bands={SKY_SUNRISE} height={HERO_HEIGHT} showTrees={false} />
+        <Pressable
+          style={[styles.backButton, { top: top + space.sm }]}
+          onPress={() => router.back()}
+          hitSlop={8}
+        >
+          <Text style={styles.backChevron}>‹</Text>
+        </Pressable>
+        <View style={[styles.heroContent, { paddingTop: top }]}>
+          <Text style={styles.heroPatchName} numberOfLines={1}>
+            {state.patch?.name ?? ''}
+          </Text>
+          <Text style={styles.heroCount}>{allSpecies.length}</Text>
+          <Text style={styles.heroLabel}>SPECIES</Text>
+          {statsLine != null && <Text style={styles.heroStats}>{statsLine}</Text>}
+        </View>
+      </View>
+      <View style={styles.filterBar}>
+        <Pressable
+          style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
+          onPress={() => setFilter('all')}
+        >
+          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+            All time
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.filterPill, filter === 'year' && styles.filterPillActive]}
+          onPress={() => setFilter('year')}
+        >
+          <Text style={[styles.filterText, filter === 'year' && styles.filterTextActive]}>
+            {CURRENT_YEAR}
+          </Text>
+        </Pressable>
+      </View>
+    </>
+  );
 
   return (
     <View style={styles.root}>
-      {/* Sky background — flex bands divide the full screen height equally */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {SKY_SUNRISE.map((color, i) => (
-          <View key={i} style={{ flex: 1, backgroundColor: color }} />
-        ))}
-      </View>
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: top + space.sm }]}>
-        <Text style={styles.patchName} numberOfLines={1}>
-          {state.patch?.name ?? ''}
-        </Text>
-        <View style={styles.headerMeta}>
-          <Text style={styles.speciesCount}>
-            {count === 1 ? '1 species' : `${count} species`}
-          </Text>
-          <View style={styles.filterRow}>
-            <Pressable
-              style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
-              onPress={() => setFilter('all')}
-            >
-              <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-                All time
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.filterPill, filter === 'year' && styles.filterPillActive]}
-              onPress={() => setFilter('year')}
-            >
-              <Text style={[styles.filterText, filter === 'year' && styles.filterTextActive]}>
-                {CURRENT_YEAR}
-              </Text>
-            </Pressable>
+      <FlatList
+        data={sorted}
+        keyExtractor={item => item.species}
+        numColumns={TILE_COLS}
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>Nothing logged yet</Text>
+            <Text style={styles.emptyHint}>Head out and log your first sighting</Text>
           </View>
-        </View>
-      </View>
-
-      {/* Grid */}
-      {sorted.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>Nothing logged yet</Text>
-          <Text style={styles.emptyHint}>Head out and log your first sighting</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={sorted}
-          keyExtractor={item => item}
-          numColumns={TILE_COLS}
-          contentContainerStyle={[styles.grid, { paddingBottom: bottom + space.xl }]}
-          columnWrapperStyle={styles.row}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const isThisYear = yearSpecies.has(item);
-            return (
-              <Pressable
-                style={[styles.tile, styles.tilePlain, { width: tileWidth }]}
-                onPress={() => router.push(`/(tabs)/species?species=${encodeURIComponent(item)}`)}
-              >
-                {isThisYear && <View style={styles.tileAccent} />}
-                <Text style={styles.tileName} numberOfLines={2}>{item}</Text>
-              </Pressable>
-            );
-          }}
-        />
-      )}
+        }
+        contentContainerStyle={{ paddingBottom: bottom + space.xl }}
+        columnWrapperStyle={styles.row}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => {
+          const isThisYear = yearSpecies.has(item.species);
+          return (
+            <Pressable
+              style={[styles.tile, { width: tileWidth }, isThisYear && styles.tileThisYear]}
+              onPress={() => router.push(`/(tabs)/species?species=${encodeURIComponent(item.species)}`)}
+            >
+              {isThisYear && <View style={styles.tileAccent} />}
+              <Text style={styles.tileName} numberOfLines={2}>{item.species}</Text>
+              <Text style={styles.tileCount}>{item.record_count}</Text>
+            </Pressable>
+          );
+        }}
+      />
     </View>
   );
 }
@@ -124,40 +144,75 @@ export default function YourPatch() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.skyDeepNight,
+    backgroundColor: colors.parchment,
   },
 
-  header: {
-    paddingHorizontal: space.lg,
-    paddingBottom: space.md,
-    gap: space.sm,
+  backButton: {
+    position: 'absolute',
+    left: space.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  patchName: {
+  backChevron: {
+    fontSize: 22,
+    color: colors.white,
+    lineHeight: 26,
+    marginTop: -1,
+  },
+
+  heroContent: {
+    position: 'absolute',
+    top: 0,
+    left: space.lg,
+    right: space.lg,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  heroPatchName: {
     ...t.label,
     color: colors.amber,
-    fontSize: 11,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  headerMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  heroCount: {
+    fontSize: 52,
+    fontWeight: '600',
+    color: colors.white,
+    lineHeight: 56,
   },
-  speciesCount: {
-    ...t.meta,
+  heroLabel: {
+    ...t.label,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
+  heroStats: {
+    fontSize: 12,
     color: 'rgba(255,255,255,0.55)',
+    marginTop: 6,
   },
-  filterRow: {
+
+  filterBar: {
     flexDirection: 'row',
-    gap: space.xs,
+    justifyContent: 'center',
+    gap: space.sm,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.lg,
+    backgroundColor: colors.parchment,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.parchmentBorder,
   },
   filterPill: {
     paddingHorizontal: space.md,
     paddingVertical: space.xs + 2,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: colors.parchmentBorder,
+    backgroundColor: colors.white,
   },
   filterPillActive: {
     backgroundColor: colors.amber,
@@ -166,38 +221,37 @@ const styles = StyleSheet.create({
   filterText: {
     ...t.meta,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.7)',
+    color: colors.inkMid,
   },
   filterTextActive: {
     color: colors.white,
   },
 
-  grid: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    gap: TILE_GAP,
-  },
   row: {
+    paddingHorizontal: space.md,
     gap: TILE_GAP,
+    marginTop: TILE_GAP,
   },
 
   tile: {
-    minHeight: 52,
+    minHeight: 66,
     borderRadius: radius.card,
     borderWidth: 1,
+    borderColor: colors.parchmentBorder,
+    backgroundColor: colors.white,
     paddingHorizontal: space.xs + 2,
     paddingVertical: space.sm + 2,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  tilePlain: {
-    backgroundColor: colors.white,
-    borderColor: colors.parchmentBorder,
+  tileThisYear: {
+    backgroundColor: 'rgba(200,125,58,0.10)',
+    borderColor: 'rgba(200,125,58,0.35)',
   },
   tileAccent: {
     position: 'absolute',
@@ -215,19 +269,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 17,
   },
+  tileCount: {
+    position: 'absolute',
+    bottom: 4,
+    right: 6,
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.inkFaint,
+  },
 
   empty: {
-    flex: 1,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
     alignItems: 'center',
-    justifyContent: 'center',
     gap: space.xs,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: colors.inkMid,
   },
   emptyHint: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
+    color: colors.inkFaint,
   },
 });

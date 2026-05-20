@@ -10,6 +10,7 @@ import { SKY_DAY, timeOfDayFromHour } from '@/skies';
 import type { TimeOfDay } from '@/skies';
 import { TimeOfDayIcon } from '@/components/TimeOfDayIcon';
 import { ConditionsIcon } from '@/components/ConditionsIcon';
+import { BinocularsIcon } from '@/components/BinocularsIcon';
 import type { Conditions } from '@/components/ConditionsIcon';
 
 const HOME_SKY = SKY_DAY;
@@ -45,7 +46,7 @@ import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
 import {
   getYearSightingsCount, getAllTimeSightingsCount,
-  getRecentSightings, getYearSpeciesList,
+  getRecentSightings, getYearSpeciesList, getAllTimeSpeciesCount,
 } from '@/db/database';
 import type { Sighting } from '@/db/database';
 import { getWatchSpecies, currentSeason } from '@/data/phenology';
@@ -108,6 +109,7 @@ export default function PatchHome() {
 
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
+  const [allTimeSpeciesCount, setAllTimeSpeciesCount] = useState(0);
   const [recentSightings, setRecentSightings] = useState<Sighting[]>([]);
   const [yearSpecies, setYearSpecies] = useState<string[]>([]);
 
@@ -119,14 +121,16 @@ export default function PatchHome() {
   const loadData = useCallback(async () => {
     if (!state.patch) return;
     const year = new Date().getFullYear();
-    const [yc, atc, recent, ys] = await Promise.all([
+    const [yc, atc, atsc, recent, ys] = await Promise.all([
       getYearSightingsCount(db, state.patch.id, year),
       getAllTimeSightingsCount(db, state.patch.id),
+      getAllTimeSpeciesCount(db, state.patch.id),
       getRecentSightings(db, state.patch.id),
       getYearSpeciesList(db, state.patch.id, year),
     ]);
     setYearCount(yc);
     setAllTimeCount(atc);
+    setAllTimeSpeciesCount(atsc);
     setRecentSightings(recent);
     setYearSpecies(ys);
   }, [state.patch?.id]);
@@ -233,13 +237,21 @@ export default function PatchHome() {
         </View>
       )}
 
-      {/* Your patch link */}
+      {/* Your list link */}
       <Pressable
         style={styles.patchLink}
         onPress={() => router.navigate('/(tabs)/poster')}
       >
-        <Text style={styles.patchLinkText}>Sightings log</Text>
-        <Text style={styles.patchLinkChevron}>›</Text>
+        <View style={styles.patchLinkLeft}>
+          <BinocularsIcon size={16} color={colors.amber} />
+          <Text style={styles.patchLinkText}>Your list</Text>
+        </View>
+        <View style={styles.patchLinkRight}>
+          {allTimeSpeciesCount > 0 && (
+            <Text style={styles.patchLinkStat}>{allTimeSpeciesCount} species</Text>
+          )}
+          <Text style={styles.patchLinkChevron}>›</Text>
+        </View>
       </Pressable>
 
       {/* Keep an eye out */}
@@ -369,18 +381,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.lg,
-    paddingVertical: space.sm + 2,
+    paddingVertical: space.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.parchmentBorder,
   },
+  patchLinkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
   patchLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.inkDark,
+  },
+  patchLinkRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  patchLinkStat: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.inkLight,
+    color: colors.amber,
   },
   patchLinkChevron: {
     fontSize: 18,
-    color: colors.inkFaint,
+    color: colors.amber,
     lineHeight: 22,
   },
 

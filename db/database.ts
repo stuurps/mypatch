@@ -154,6 +154,27 @@ export async function getPatchSpecies(db: SQLiteDatabase, patchId: string, year?
   return rows.map(r => r.species);
 }
 
+export function getPatchSpeciesWithCounts(
+  db: SQLiteDatabase,
+  patchId: string,
+): Promise<{ species: string; record_count: number }[]> {
+  return db.getAllAsync<{ species: string; record_count: number }>(
+    'SELECT species, COUNT(*) as record_count FROM sightings WHERE patch_id = ? GROUP BY species ORDER BY species ASC',
+    patchId,
+  );
+}
+
+export async function getFirstSightingDate(
+  db: SQLiteDatabase,
+  patchId: string,
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ first_seen: string | null }>(
+    'SELECT MIN(seen_at) as first_seen FROM sightings WHERE patch_id = ?',
+    patchId,
+  );
+  return row?.first_seen ?? null;
+}
+
 export function getSighting(db: SQLiteDatabase, id: string) {
   return db.getFirstAsync<Sighting>('SELECT * FROM sightings WHERE id = ?', id);
 }

@@ -432,20 +432,20 @@ Tap any species tile in the patch photo grid to see the full history of that bir
 - Empty state not needed — only reachable by tapping a logged species tile
 
 **`db/database.ts`:**
-- [ ] Add `getSpeciesSightings(db, patchId, species): Promise<Sighting[]>` — `SELECT * FROM sightings WHERE patch_id = ? AND species = ? ORDER BY seen_at DESC`
-- [ ] First and last seen derived from result array — no extra query needed
+- [x] Add `getSpeciesSightings(db, patchId, species): Promise<Sighting[]>` — `SELECT * FROM sightings WHERE patch_id = ? AND species = ? ORDER BY seen_at DESC`
+- [x] First and last seen derived from result array — no extra query needed
 
 **New screen `app/(tabs)/species.tsx`:**
-- [ ] Route params: `species` (URL-encoded string)
-- [ ] On mount: call `getSpeciesSightings`, derive first/last seen from result
-- [ ] Header: forest green background, back chevron, species name title
-- [ ] Stats row: three quiet facts separated by `·` — first seen, last seen, record count
-- [ ] Sighting list below — `FlatList`, each row identical in structure to home recent sightings rows
-- [ ] `useFocusEffect` reload (in case user edits a sighting and returns)
+- [x] Route params: `species` (URL-encoded string)
+- [x] On mount: call `getSpeciesSightings`, derive first/last seen from result
+- [x] Header: forest green background, back chevron, species name title
+- [x] Stats row: three quiet facts separated by `·` — first seen, last seen, record count
+- [x] Sighting list below — `FlatList`, each row identical in structure to home recent sightings rows
+- [x] `useFocusEffect` reload (in case user edits a sighting and returns)
 
 **`app/(tabs)/poster.tsx`:**
-- [ ] Wrap each species tile `View` in a `Pressable`
-- [ ] `onPress`: `router.push('/(tabs)/species?species=' + encodeURIComponent(name))`
+- [x] Wrap each species tile `View` in a `Pressable`
+- [x] `onPress`: `router.push('/(tabs)/species?species=' + encodeURIComponent(name))`
 
 **Done when:** Tapping a species tile opens the detail screen. Stats and sighting list load correctly from SQLite. Back chevron returns to the photo grid. Screen reloads correctly after editing a sighting.
 
@@ -521,7 +521,8 @@ Ranked by impact (deepens patch relationship × first-12-months value) × build 
 | P1 | Species detail page | Task 15 — scoped | M |
 | P1 | Second patch (max 2) | Task 18 — scoped | L |
 | P1 | Journal — first version | Task 19 — scoped | L |
-| P1 | Share patch photo | Bundle with Task 15 | S |
+| P1 | Sightings summary — poster redesign + per-species counts | Task 20 — scoped | M |
+| P2 | Milestone callouts on sightings summary (most logged, latest addition, longest resident) | Not yet scoped | S |
 | P2 | Month stats line on home ("X species this month") | Bundle with home polish | S |
 | P2 | Sighting history browse by month | Not yet scoped | M |
 | P2 | Session summary (post-log closing moment) | Not yet scoped | M |
@@ -612,6 +613,47 @@ The differentiating feature — the narrative layer that eBird and Merlin don't 
 - [ ] Long-press anywhere → "Delete entry" action sheet → confirmation → `deleteJournalEntry` → pop to list
 
 **Done when:** Journal tab shows a list of entries (or quiet empty state). Tapping `+` opens a compose screen. Writing and navigating back saves the entry. Entries are editable. Entries are deletable with confirmation. All scoped to active patch.
+
+---
+
+---
+
+## Task 20 — Sightings summary redesign ✅
+
+Transform the patch photo screen from a functional species list into a shareable artifact. The hero becomes a poster-style block with the species count as the headline number, key patch stats, and per-species record counts on every tile. A screenshot of the screen should look like something worth sharing.
+
+**Design decisions:**
+- Hero: `SkyHero` (SKY_SUNRISE, no trees, height 220) with content overlaid — patch name (amber small caps, centred), species count (white, 52px, weight 600), `SPECIES` label (white small caps), stats line `"[N] records · since [Month Year]"` (white 55% opacity, 12px)
+- Back chevron: absolute top-left of hero, 40×40 tap target, semi-transparent white background
+- Filter pills: move below hero into a parchment bar (`borderBottomWidth: 1`) — they are utility, not poster content
+- Per-tile record count: all-time count in bottom-right corner of every tile — 10px, `inkFaint`, absolute positioned. Always shows all-time count regardless of active filter — reflects how established the species is
+- This-year amber tint + amber dot: unchanged
+- Sort order: this-year first, then alphabetical — unchanged
+- Tile tap → species detail: unchanged. Species detail page is the full per-species breakdown
+- Tile `minHeight`: 52 → 66 to give count breathing room
+- Root background: `colors.parchment` (remove full-screen sky bands)
+
+**`db/database.ts`:**
+- [ ] Add `getPatchSpeciesWithCounts(db, patchId): Promise<{species: string, record_count: number}[]>`
+  - Query: `SELECT species, COUNT(*) as record_count FROM sightings WHERE patch_id = ? GROUP BY species ORDER BY species ASC`
+  - Returns all-time species with their record count
+
+**`utils/format.ts`:**
+- [ ] Add `formatSince(dateStr: string): string` — formats `patch.created_at` as `"Oct 2023"` using the existing `MONTHS` array
+
+**`app/(tabs)/poster.tsx`:**
+- [ ] Remove `absoluteFill` sky background View; set root `backgroundColor: colors.parchment`
+- [ ] Restructure as `FlatList` with `ListHeaderComponent`:
+  - Hero block (220px): `SkyHero` + absolute-positioned back button (top-left) + centred content overlay (patch name, big count, label, stats line)
+  - Filter bar: parchment, `paddingVertical: space.sm`, pills row centred or left-aligned, `borderBottomWidth: 1`
+- [ ] Replace `getPatchSpecies` call with `getPatchSpeciesWithCounts` for the main data
+- [ ] Keep `getPatchSpecies(db, patchId, year)` for the `yearSpecies` Set (year filter + amber tint logic)
+- [ ] Add `totalRecords` state: `getAllTimeSightingsCount(db, patchId)` on mount
+- [ ] Add `firstSightingDate` state: `getFirstSightingDate(db, patchId)` on mount
+- [ ] Build stats line: `` `${totalRecords} records · since ${formatSince(firstSightingDate)}` `` — uses first sighting date, not patch creation date
+- [ ] Tile: add `tileCount` style (absolute, bottom: 4, right: 6) rendering `record_count`; update `minHeight` to 66
+
+**Done when:** Hero shows large species count, patch name, and records/since line. Every tile shows its record count. Filter pills work. Tap to species detail works. Back button works. Screenshot of the full screen reads as a poster, not a settings screen.
 
 ---
 
