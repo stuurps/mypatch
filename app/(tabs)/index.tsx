@@ -15,18 +15,7 @@ import type { Conditions } from '@/components/ConditionsIcon';
 
 import { colors, type as t, space, radius } from '@/tokens';
 
-const PHRASES = [
-  "Your patch is waiting",
-  "What's out there today?",
-  "Every visit counts",
-  "Quiet eyes, open ears",
-  "You know this place",
-  "The birds are ahead of you",
-  "Log what you find",
-];
-let phraseIndexCounter = 0;
-
-function greetingText(patchName: string, userName: string | null): string {
+function greetingText(userName: string | null): string {
   const h = new Date().getHours();
   let period: string;
   if (h >= 5 && h <= 11) period = 'Morning';
@@ -34,13 +23,7 @@ function greetingText(patchName: string, userName: string | null): string {
   else if (h >= 17 && h <= 20) period = 'Evening';
   else period = 'Night';
   if (userName) return `${period}, ${userName}`;
-  return `${period} on ${patchName}`;
-}
-
-function nextPhrase(): string {
-  const phrase = PHRASES[phraseIndexCounter % PHRASES.length];
-  phraseIndexCounter++;
-  return phrase;
+  return period;
 }
 import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
@@ -115,7 +98,6 @@ export default function PatchHome() {
 
   const [homeSky] = useState(skyForSighting);
   const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
-  const [phrase] = useState(() => nextPhrase());
   const [activeToast, setActiveToast] = useState<ToastPayload | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -214,8 +196,8 @@ export default function PatchHome() {
           onLongPress={onLongPressPatchName}
           delayLongPress={400}
         >
-          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '', state.userName)}</Text>
-          <Text style={styles.greetingPhrase}>{state.userName ? `on ${state.patch?.name ?? ''}` : phrase}</Text>
+          <Text style={styles.greetingLine}>{greetingText(state.userName)}</Text>
+          <Text style={styles.greetingPhrase}>Your {state.patch?.name ?? 'patch'}</Text>
         </Pressable>
       </View>
 
@@ -297,6 +279,7 @@ export default function PatchHome() {
     </>
     );
   }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
+
 
   return (
     <View style={styles.root}>
