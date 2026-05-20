@@ -494,12 +494,13 @@ These rotate on each app open, not on a timer. Pick from a pool, cycle determini
 - "Log what you find"
 
 **`app/(tabs)/index.tsx`:**
-- [ ] Replace patch name amber label + heroOverlay with a new `heroGreeting` block — centred vertically in the lower half of the hero, above the bottom scrim
-- [ ] `greetingText(patchName: string): string` — returns `"Morning on Fowlmere"` etc. based on `new Date().getHours()`
-- [ ] `rotatingPhrase(): string` — returns a phrase from the pool, cycling via a module-level index incremented on each mount (not random)
-- [ ] Greeting: white, large (~28px), weight 500 — prominent but not aggressive
-- [ ] Rotating phrase: white at 0.55 opacity, small (~13px), weight 400 — below the greeting, a beat of quiet
-- [ ] Long-press remains on the greeting text block (same `onLongPressPatchName` as today)
+- [x] Replace patch name amber label + heroOverlay with a new `heroGreeting` block — centred vertically in the lower half of the hero, above the bottom scrim
+- [x] `greetingText(patchName: string): string` — returns `"Morning on Fowlmere"` etc. based on `new Date().getHours()`
+- [x] `rotatingPhrase(): string` — returns a phrase from the pool, cycling via a module-level index incremented on each mount (not random)
+- [x] Greeting: white, large (~28px), weight 500 — prominent but not aggressive
+- [x] Rotating phrase: white at 0.55 opacity, small (~13px), weight 400 — below the greeting, a beat of quiet
+- [x] Long-press remains on the greeting text block (same `onLongPressPatchName` as today)
+- [x] Same greeting applied to Journal hero
 
 **Done when:** The hero shows "Morning on [patch name]" (or equivalent for time of day) in large white text. A quiet rotating phrase appears below it. Long-press still opens the edit patch action sheet. The greeting updates correctly when the patch is renamed.
 
