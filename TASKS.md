@@ -520,7 +520,7 @@ Ranked by impact (deepens patch relationship × first-12-months value) × build 
 | P1 | Today's log grouping on home | ✅ Task 16 | — |
 | P1 | Species detail page | Task 15 — scoped | M |
 | P1 | Second patch (max 2) | Task 18 — scoped | L |
-| P1 | Journal — first version | Task 19 — scoped | L |
+| P1 | Journal — first version | Task 19 ✅ | L |
 | P1 | Sightings summary — poster redesign + per-species counts | Task 20 — scoped | M |
 | P2 | Milestone callouts on sightings summary (most logged, latest addition, longest resident) | Not yet scoped | S |
 | P2 | Month stats line on home ("X species this month") | Bundle with home polish | S |
@@ -570,7 +570,7 @@ Allow users to create and switch between two patches. Realises the "max 2 patche
 
 ---
 
-## Task 19 — Journal MVP
+## Task 19 — Journal MVP ✅
 
 The differentiating feature — the narrative layer that eBird and Merlin don't have and never will. A session-level field notebook: the story of being somewhere, not structured data. Confirmed as the most anticipated unbuilt feature (2/4 Wave 2 personas; design-target user explicitly named it).
 
