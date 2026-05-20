@@ -1,13 +1,39 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { View, Text, StyleSheet, SectionList, Pressable } from 'react-native';
+import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
 import { SKY_DAY } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
-import { getYearJournalCount, getAllTimeJournalCount } from '@/db/database';
+import { getYearJournalCount, getAllTimeJournalCount, getJournalEntries, JournalEntry } from '@/db/database';
+import { formatDate } from '@/utils/format';
+
+type Section = { title: string; data: JournalEntry[] };
+
+function groupByDate(entries: JournalEntry[]): Section[] {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  function sameDay(a: Date, b: Date) {
+    return a.getDate() === b.getDate()
+      && a.getMonth() === b.getMonth()
+      && a.getFullYear() === b.getFullYear();
+  }
+
+  const map = new Map<string, JournalEntry[]>();
+  for (const entry of entries) {
+    const d = new Date(entry.created_at);
+    const key = sameDay(d, today) ? 'Today'
+      : sameDay(d, yesterday) ? 'Yesterday'
+      : formatDate(entry.created_at);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(entry);
+  }
+  return Array.from(map.entries()).map(([title, data]) => ({ title, data }));
+}
 
 const JOURNAL_SKY = SKY_DAY;
 const HERO_HEIGHT = 260;
@@ -47,6 +73,7 @@ export default function JournalScreen() {
   const [phrase] = useState(() => nextPhrase());
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
+  const [sections, setSections] = useState<Section[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,9 +82,11 @@ export default function JournalScreen() {
       Promise.all([
         getYearJournalCount(db, state.patch.id, year),
         getAllTimeJournalCount(db, state.patch.id),
-      ]).then(([yc, atc]) => {
+        getJournalEntries(db, state.patch.id),
+      ]).then(([yc, atc, ents]) => {
         setYearCount(yc);
         setAllTimeCount(atc);
+        setSections(groupByDate(ents));
       });
     }, [state.patch?.id]),
   );
@@ -83,14 +112,47 @@ export default function JournalScreen() {
         </View>
       </View>
 
-      <View style={[styles.body, { paddingBottom: bottom + space.lg }]}>
-        <View style={styles.banner}>
-          <Text style={styles.bannerLabel}>Coming soon</Text>
-          <Text style={styles.bannerText}>
-            A field notebook for your patch — session notes, not just species lists.
-          </Text>
-        </View>
+      <View style={styles.listHeader}>
+        <Text style={styles.listHeaderLabel}>Your entries</Text>
+        <Pressable
+          style={styles.composeBtn}
+          hitSlop={8}
+          onPress={() => router.push('/(tabs)/journal-compose')}
+        >
+          <Text style={styles.composeBtnText}>+</Text>
+        </Pressable>
       </View>
+
+      <SectionList
+        sections={sections}
+        keyExtractor={item => item.id}
+        style={styles.list}
+        contentContainerStyle={{ paddingBottom: bottom + space.lg }}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionLabel, title === 'Today' && styles.sectionLabelToday]}>
+              {title}
+            </Text>
+          </View>
+        )}
+        renderItem={({ item }) => (
+          <Pressable
+            style={styles.entryRow}
+            onPress={() => router.push(`/(tabs)/journal-edit?id=${item.id}`)}
+          >
+            <Text style={styles.entryPreview} numberOfLines={2}>
+              {item.body.split('\n').find(l => l.trim()) ?? ''}
+            </Text>
+          </Pressable>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Your first entry is waiting.</Text>
+          </View>
+        }
+      />
     </View>
   );
 }
@@ -145,26 +207,34 @@ const styles = StyleSheet.create({
   statNumber: { ...t.statLarge },
   statLabel: { ...t.label },
 
-  body: {
-    flex: 1,
-    justifyContent: 'center',
+  listHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.xl,
+    justifyContent: 'space-between',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.parchmentBorder,
   },
+  listHeaderLabel: { ...t.label },
+  composeBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  composeBtnText: { fontSize: 22, color: colors.amber, lineHeight: 26 },
 
-  banner: {
-    alignItems: 'center',
-    gap: space.sm,
+  list: { flex: 1 },
+  sectionHeader: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    paddingBottom: space.sm,
   },
-  bannerLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.amber,
+  sectionLabel: { ...t.label },
+  sectionLabelToday: { color: colors.amber },
+  entryRow: {
+    paddingVertical: space.sm,
+    paddingHorizontal: space.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.parchmentBorder,
   },
-  bannerText: {
-    ...t.body,
-    textAlign: 'center',
-  },
+  entryPreview: { ...t.body, color: colors.inkMid },
+  emptyState: { paddingVertical: space.xl, paddingHorizontal: space.lg, alignItems: 'center' },
+  emptyText: { ...t.body, color: colors.inkMid },
 });

@@ -7,7 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as ExpoCrypto from 'expo-crypto';
-import { colors, type as t, space, radius } from '@/tokens';
+import { colors, type as t, space } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
 import { insertJournalEntry } from '@/db/database';
 import { formatDate } from '@/utils/format';
@@ -18,27 +18,29 @@ export default function JournalCompose() {
   const { top, bottom } = useSafeAreaInsets();
   const [body, setBody] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const savingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       setBody('');
+      savingRef.current = false;
       setTimeout(() => inputRef.current?.focus(), 100);
     }, []),
   );
 
-  async function handleSave() {
-    if (!body.trim() || !state.patch) return;
-    const now = new Date().toISOString();
-    await insertJournalEntry(db, {
-      id: ExpoCrypto.randomUUID(),
-      patch_id: state.patch.id,
-      body: body.trim(),
-      created_at: now,
-    });
+  async function handleBack() {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    if (body.trim() && state.patch) {
+      await insertJournalEntry(db, {
+        id: ExpoCrypto.randomUUID(),
+        patch_id: state.patch.id,
+        body: body.trim(),
+        created_at: new Date().toISOString(),
+      });
+    }
     router.navigate('/(tabs)/journal');
   }
-
-  const canSave = body.trim().length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -46,7 +48,7 @@ export default function JournalCompose() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.header, { paddingTop: top + space.sm }]}>
-        <Pressable style={styles.backBtn} onPress={() => router.navigate('/(tabs)/journal')}>
+        <Pressable style={styles.backBtn} onPress={handleBack}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>New entry</Text>
@@ -73,14 +75,6 @@ export default function JournalCompose() {
           autoCorrect
           autoCapitalize="sentences"
         />
-
-        <Pressable
-          style={[styles.cta, !canSave && styles.ctaDisabled]}
-          onPress={handleSave}
-          disabled={!canSave}
-        >
-          <Text style={styles.ctaText}>Save</Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -139,18 +133,4 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
 
-  cta: {
-    backgroundColor: colors.amber,
-    borderRadius: radius.button,
-    paddingVertical: space.md,
-    alignItems: 'center',
-  },
-  ctaDisabled: {
-    opacity: 0.35,
-  },
-  ctaText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.white,
-  },
 });

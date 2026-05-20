@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Alert,
@@ -6,7 +6,7 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { colors, type as t, space, radius } from '@/tokens';
+import { colors, type as t, space } from '@/tokens';
 import { getJournalEntry, updateJournalEntry, deleteJournalEntry } from '@/db/database';
 import { formatDate } from '@/utils/format';
 
@@ -16,9 +16,11 @@ export default function JournalEdit() {
   const { top, bottom } = useSafeAreaInsets();
   const [body, setBody] = useState('');
   const [createdAt, setCreatedAt] = useState('');
+  const savingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
+      savingRef.current = false;
       if (!id) return;
       getJournalEntry(db, id).then(entry => {
         if (!entry) return;
@@ -28,9 +30,12 @@ export default function JournalEdit() {
     }, [id]),
   );
 
-  async function handleSave() {
-    if (!body.trim() || !id) return;
-    await updateJournalEntry(db, id, body.trim());
+  async function handleBack() {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    if (body.trim() && id) {
+      await updateJournalEntry(db, id, body.trim());
+    }
     router.navigate('/(tabs)/journal');
   }
 
@@ -52,54 +57,42 @@ export default function JournalEdit() {
     );
   }
 
-  const canSave = body.trim().length > 0;
-
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.header, { paddingTop: top + space.sm }]}>
-        <Pressable style={styles.backBtn} onPress={() => router.navigate('/(tabs)/journal')}>
+        <Pressable style={styles.backBtn} onPress={handleBack}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Edit entry</Text>
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + space.lg }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {createdAt ? (
-          <Text style={styles.dateLabel}>{formatDate(createdAt)}</Text>
-        ) : null}
-
-        <TextInput
-          style={styles.bodyInput}
-          value={body}
-          onChangeText={setBody}
-          multiline
-          textAlignVertical="top"
-          autoCorrect
-          autoCapitalize="sentences"
-          placeholderTextColor={colors.inkFaint}
-        />
-
-        <Pressable
-          style={[styles.cta, !canSave && styles.ctaDisabled]}
-          onPress={handleSave}
-          disabled={!canSave}
+      <Pressable style={styles.scrollPressable} onLongPress={handleDelete} delayLongPress={600}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingBottom: bottom + space.lg }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.ctaText}>Save changes</Text>
-        </Pressable>
+          {createdAt ? (
+            <Text style={styles.dateLabel}>{formatDate(createdAt)}</Text>
+          ) : null}
 
-        <Pressable style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteBtnText}>Remove entry</Text>
-        </Pressable>
-      </ScrollView>
+          <TextInput
+            style={styles.bodyInput}
+            value={body}
+            onChangeText={setBody}
+            multiline
+            textAlignVertical="top"
+            autoCorrect
+            autoCapitalize="sentences"
+            placeholderTextColor={colors.inkFaint}
+          />
+        </ScrollView>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }
@@ -157,28 +150,5 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
 
-  cta: {
-    backgroundColor: colors.amber,
-    borderRadius: radius.button,
-    paddingVertical: space.md,
-    alignItems: 'center',
-  },
-  ctaDisabled: {
-    opacity: 0.35,
-  },
-  ctaText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.white,
-  },
-
-  deleteBtn: {
-    alignItems: 'center',
-    paddingVertical: space.sm,
-  },
-  deleteBtnText: {
-    fontSize: 14,
-    color: colors.red,
-    fontWeight: '500',
-  },
+  scrollPressable: { flex: 1 },
 });
