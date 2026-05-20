@@ -124,6 +124,13 @@ export function getRecentSightings(db: SQLiteDatabase, patchId: string, limit = 
   );
 }
 
+export function getSpeciesSightings(db: SQLiteDatabase, patchId: string, species: string) {
+  return db.getAllAsync<Sighting>(
+    'SELECT * FROM sightings WHERE patch_id = ? AND species = ? ORDER BY seen_at DESC, created_at DESC',
+    patchId, species,
+  );
+}
+
 export async function hasSpeciesBeenLogged(db: SQLiteDatabase, patchId: string, species: string) {
   const row = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM sightings WHERE patch_id = ? AND species = ?',

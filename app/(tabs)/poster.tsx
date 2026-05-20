@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
+import { router } from 'expo-router';
 import { SKY_SUNRISE } from '@/skies';
 import { usePatch } from '@/context/PatchContext';
 import { getPatchSpecies } from '@/db/database';
@@ -105,10 +106,13 @@ export default function YourPatch() {
           renderItem={({ item }) => {
             const isThisYear = yearSpecies.has(item);
             return (
-              <View style={[styles.tile, styles.tilePlain, { width: tileWidth }]}>
+              <Pressable
+                style={[styles.tile, styles.tilePlain, { width: tileWidth }]}
+                onPress={() => router.push(`/(tabs)/species?species=${encodeURIComponent(item)}`)}
+              >
                 {isThisYear && <View style={styles.tileAccent} />}
                 <Text style={styles.tileName} numberOfLines={2}>{item}</Text>
-              </View>
+              </Pressable>
             );
           }}
         />
