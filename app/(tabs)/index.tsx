@@ -6,14 +6,13 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
-import { SKY_DAY, timeOfDayFromHour } from '@/skies';
+import { skyForSighting, timeOfDayFromHour } from '@/skies';
 import type { TimeOfDay } from '@/skies';
 import { TimeOfDayIcon } from '@/components/TimeOfDayIcon';
 import { ConditionsIcon } from '@/components/ConditionsIcon';
 import { BinocularsIcon } from '@/components/BinocularsIcon';
 import type { Conditions } from '@/components/ConditionsIcon';
 
-const HOME_SKY = SKY_DAY;
 import { colors, type as t, space, radius } from '@/tokens';
 
 const PHRASES = [
@@ -27,13 +26,14 @@ const PHRASES = [
 ];
 let phraseIndexCounter = 0;
 
-function greetingText(patchName: string): string {
+function greetingText(patchName: string, userName: string | null): string {
   const h = new Date().getHours();
   let period: string;
   if (h >= 5 && h <= 11) period = 'Morning';
   else if (h >= 12 && h <= 16) period = 'Afternoon';
   else if (h >= 17 && h <= 20) period = 'Evening';
   else period = 'Night';
+  if (userName) return `${period}, ${userName}`;
   return `${period} on ${patchName}`;
 }
 
@@ -113,6 +113,8 @@ export default function PatchHome() {
   const [recentSightings, setRecentSightings] = useState<Sighting[]>([]);
   const [yearSpecies, setYearSpecies] = useState<string[]>([]);
 
+  const [homeSky] = useState(skyForSighting);
+  const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
   const [phrase] = useState(() => nextPhrase());
   const [activeToast, setActiveToast] = useState<ToastPayload | null>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
@@ -206,14 +208,14 @@ export default function PatchHome() {
     <>
       {/* Hero */}
       <View style={{ height: HERO_HEIGHT }}>
-        <SkyHero bands={HOME_SKY} height={HERO_HEIGHT} showTrees={false} />
+        <SkyHero bands={homeSky} height={HERO_HEIGHT} showTrees={false} stars={isNight} />
         <Pressable
           style={styles.heroGreeting}
           onLongPress={onLongPressPatchName}
           delayLongPress={400}
         >
-          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '')}</Text>
-          <Text style={styles.greetingPhrase}>{phrase}</Text>
+          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '', state.userName)}</Text>
+          <Text style={styles.greetingPhrase}>{state.userName ? `on ${state.patch?.name ?? ''}` : phrase}</Text>
         </Pressable>
       </View>
 
@@ -294,7 +296,7 @@ export default function PatchHome() {
       )}
     </>
     );
-  }, [state.patch?.name, state.patch?.radius_km, yearCount, allTimeCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
+  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
 
   return (
     <View style={styles.root}>

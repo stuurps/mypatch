@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
 import { StepDots } from '@/components/StepDots';
-import { SKY_SUNSET } from '@/skies';
+import { SKY_NIGHT } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
 import { insertPatch, updatePatch } from '@/db/database';
 import type { Patch } from '@/db/database';
@@ -52,7 +52,7 @@ export default function OnboardingSize() {
 
   return (
     <View style={styles.container}>
-      <SkyHero bands={SKY_SUNSET} height={height} />
+      <SkyHero bands={SKY_NIGHT} height={height} stars />
 
       <View style={StyleSheet.absoluteFill}>
         {/* Top bar */}
@@ -61,7 +61,7 @@ export default function OnboardingSize() {
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={styles.barCenter}>
-            {!isEditing && <StepDots current={3} />}
+            {!isEditing && <StepDots current={4} />}
           </View>
           <View style={{ width: 36 }} />
         </View>

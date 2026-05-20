@@ -71,6 +71,20 @@ export async function initDatabase(db: SQLiteDatabase) {
   } catch {
     // column already exists — safe to ignore
   }
+  try {
+    await db.execAsync('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)');
+  } catch {
+    // table already exists — safe to ignore
+  }
+}
+
+export async function getSetting(db: SQLiteDatabase, key: string): Promise<string | null> {
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key);
+  return row?.value ?? null;
+}
+
+export function setSetting(db: SQLiteDatabase, key: string, value: string) {
+  return db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', key, value);
 }
 
 export function getFirstPatch(db: SQLiteDatabase) {

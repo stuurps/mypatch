@@ -4,7 +4,7 @@ import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
-import { SKY_DAY } from '@/skies';
+import { skyForSighting, timeOfDayFromHour } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
 import { getYearJournalCount, getAllTimeJournalCount, getJournalEntries, JournalEntry } from '@/db/database';
@@ -35,7 +35,6 @@ function groupByDate(entries: JournalEntry[]): Section[] {
   return Array.from(map.entries()).map(([title, data]) => ({ title, data }));
 }
 
-const JOURNAL_SKY = SKY_DAY;
 const HERO_HEIGHT = 260;
 
 const PHRASES = [
@@ -49,13 +48,14 @@ const PHRASES = [
 ];
 let phraseIndexCounter = 0;
 
-function greetingText(patchName: string): string {
+function greetingText(patchName: string, userName: string | null): string {
   const h = new Date().getHours();
   let period: string;
   if (h >= 5 && h <= 11) period = 'Morning';
   else if (h >= 12 && h <= 16) period = 'Afternoon';
   else if (h >= 17 && h <= 20) period = 'Evening';
   else period = 'Night';
+  if (userName) return `${period}, ${userName}`;
   return `${period} on ${patchName}`;
 }
 
@@ -70,6 +70,8 @@ export default function JournalScreen() {
   const { state } = usePatch();
   const db = useSQLiteContext();
 
+  const [journalSky] = useState(skyForSighting);
+  const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
   const [phrase] = useState(() => nextPhrase());
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
@@ -93,10 +95,10 @@ export default function JournalScreen() {
 
   return (
     <View style={styles.root}>
-      <SkyHero bands={JOURNAL_SKY} height={HERO_HEIGHT} showTrees={false}>
+      <SkyHero bands={journalSky} height={HERO_HEIGHT} showTrees={false} stars={isNight}>
         <View style={styles.heroGreeting}>
-          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '')}</Text>
-          <Text style={styles.greetingPhrase}>{phrase}</Text>
+          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '', state.userName)}</Text>
+          <Text style={styles.greetingPhrase}>{state.userName ? `on ${state.patch?.name ?? ''}` : phrase}</Text>
         </View>
       </SkyHero>
 

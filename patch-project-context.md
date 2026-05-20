@@ -120,17 +120,16 @@ Features should be designed for users in their first year of logging, not for us
 
 This ruled out Task 14 (Seasons), which relied on comparative history ("your last swift was 6 weeks ago") that doesn't exist for new users. Phenology-aware features are fine; history-comparative features are deferred until they can degrade gracefully for early users.
 
-### Journal direction (May 2026)
-The journal tab exists but shows a coming soon placeholder. The original plan was to add date/time of day/conditions/species to the journal form — but that made it nearly identical to the log form, which raised the right question: what is the journal actually for?
+### Journal direction (May 2026) — shipped Task 19
+The journal is a session-level field notebook — the narrative layer that eBird and Merlin don't have and will never want. It is not a longer log form. Journal entries are the story of being at the patch (prose + atmosphere). The quick-log tab is the fast, low-friction data path. The journal is the slow, intentional narrative path. These are different modes of the same activity, not duplicates.
 
-Agreed direction: the journal is a session-level field notebook — the narrative layer that eBird and Merlin don't have and will never want. It is not a longer log form. When it ships, journal entries will be the story of being at the patch (prose + atmosphere), with birds tagged within a session rather than logged as separate structured records. The quick-log tab is kept as the fast, low-friction data path. The journal will be the slow, intentional narrative path. These are different modes of the same activity, not duplicates.
-
-### Journal principles (May 2026)
+**Shipped principles (Task 19):**
 - **Auto-save on back** — no explicit Save button. Back = save if body non-empty; back = discard silently if empty. Consistent with Day One, Apple Notes, Bear. (Contrast: quick-log uses explicit save because committing a sighting is a deliberate act.)
 - **Date as identity** — no title field. The date IS the title. Entries are identified by when they were written, not what was named.
-- **Prose only** — no species fields, no conditions picker. The log tab is the data path; the journal is the story path. These are different modes, not duplicates.
+- **Prose only** — no species fields, no conditions picker. The log tab is the data path; the journal is the story path.
 - **One entry = one session** — not micro-moments. A field-notebook entry per visit, not per bird or per hour.
-- **Structural symmetry with sightings** — same hero / stats / section-grouped list architecture. Intentionally different save UX because the activity is fundamentally different.
+
+**Still to come:** Birds tagged within a journal entry (B10) — the deeper integration where species are referenced in prose rather than logged separately. Major data model rethink, not v1.
 
 ### Edit patch — implementation decisions (May 2026)
 Reuses the two onboarding screens (name → size) rather than a new form. Entry point: long-press the patch name on the home hero (400ms delay, Alert with "Edit patch" / "Cancel"). Step dots are hidden in edit mode; eyebrow on name screen reads "Edit your patch". CTA on size screen reads "Save changes".

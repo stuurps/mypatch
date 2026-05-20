@@ -35,7 +35,7 @@ export default function OnboardingWelcome() {
           </Text>
           <Pressable
             style={styles.cta}
-            onPress={() => router.push('/onboarding/name')}
+            onPress={() => router.push('/onboarding/your-name')}
           >
             <Text style={styles.ctaText}>Get started</Text>
           </Pressable>

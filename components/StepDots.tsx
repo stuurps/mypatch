@@ -1,12 +1,12 @@
 import { View, StyleSheet } from 'react-native';
 import { colors, radius } from '@/tokens';
 
-type Props = { current: 1 | 2 | 3 };
+type Props = { current: 1 | 2 | 3 | 4 };
 
 export function StepDots({ current }: Props) {
   return (
     <View style={styles.row}>
-      {([1, 2, 3] as const).map(step => (
+      {([1, 2, 3, 4] as const).map(step => (
         <View
           key={step}
           style={[styles.dot, step === current ? styles.active : styles.inactive]}

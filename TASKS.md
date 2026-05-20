@@ -418,7 +418,7 @@ Revisit if a framing emerges that delivers genuine value in month one, not just 
 
 ---
 
-## Task 15 — Species detail page
+## Task 15 — Species detail page ✅
 
 Tap any species tile in the patch photo grid to see the full history of that bird at your patch. First sighting, last sighting, total records, and a scrollable list of every time it's been logged. The most requested unbuilt feature from focus group testing — deepens intimacy with individual species rather than just counting them.
 
@@ -654,6 +654,69 @@ Transform the patch photo screen from a functional species list into a shareable
 - [ ] Tile: add `tileCount` style (absolute, bottom: 4, right: 6) rendering `record_count`; update `minHeight` to 66
 
 **Done when:** Hero shows large species count, patch name, and records/since line. Every tile shows its record count. Filter pills work. Tap to species detail works. Back button works. Screenshot of the full screen reads as a poster, not a settings screen.
+
+---
+
+## Task 21 — User name in onboarding
+
+Ask for the user's first name as a new onboarding step. Changes the home hero from "Morning on Fowlmere" to "Morning, Stuart" with "on Fowlmere" as a quiet second line. The app learns who you are in one warm moment at setup; it uses that knowledge every time you open it.
+
+**Design decisions:**
+- New Step 2 between Welcome (step 1) and Name your patch (now step 3) — size moves to step 4
+- Onboarding sky arc: `SKY_SUNRISE` (welcome) → `SKY_DAY` (your name) → `SKY_SUNSET` (patch name) → `SKY_NIGHT` (size/finish) — a full day unfolding across four screens
+- `SKY_NIGHT` gets stars (white dots) so it reads as atmospheric rather than cold — see SkyHero changes below
+- Prompt: "What should we call you?" as headline, "Just your first name is fine" as quiet subline
+- `Continue` CTA disabled until input is non-empty — name is required; no Skip
+- Storage: new `settings` table (key-value, SQLite) — name is app-global, not per-patch; correct with Task 18 second-patch coming
+- Step dots expand to 4 across all onboarding screens
+- Home and journal heroes already use `skyForSighting()` (or fixed SKY_DAY for journal) — night sky with stars now surfaced at the right hour
+
+**`components/SkyHero.tsx`:**
+- [x] Add `stars?: boolean` prop
+- [x] When `stars` is true: render ~25 white SVG circle dots across the upper 60% of the hero — fixed positions (no `Math.random()`), varying radius (1–2px) and opacity (0.4–0.9) for depth
+
+**`db/database.ts`:**
+- [x] Add `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)` to `initDatabase`
+- [x] Add `getSetting(db, key): Promise<string | null>` helper
+- [x] Add `setSetting(db, key, value): Promise<void>` helper
+
+**`context/PatchContext.tsx`:**
+- [x] Add `userName: string | null` to State (default null)
+- [x] On init: load `user_name` from settings table, dispatch to state
+- [x] Add `SET_USER_NAME` action
+
+**New screen `app/onboarding/your-name.tsx`:**
+- [x] Sky: `SKY_DAY`, full screen SkyHero
+- [x] Back button (circular, semi-transparent, top left)
+- [x] Headline: "What should we call you?", subline: "Just your first name is fine"
+- [x] `TextInput` auto-focused on mount, `autoCapitalize="words"`, `returnKeyType="done"`
+- [x] `Continue` CTA: disabled at 35% opacity until input is non-empty
+- [x] On Continue: `setSetting(db, 'user_name', name.trim())` → navigate to `/onboarding/name`
+- [x] Step indicator: position 2 of 4
+
+**`app/onboarding/index.tsx` (welcome, step 1):**
+- [x] Step dots updated: 3 → 4 total
+
+**`app/onboarding/name.tsx` (patch name, now step 3):**
+- [x] Sky updated: `SKY_DAY` → `SKY_SUNSET`
+- [x] Step dots updated: 2 of 3 → 3 of 4
+
+**`app/onboarding/size.tsx` (patch size, now step 4):**
+- [x] Sky updated: `SKY_SUNSET` → `SKY_NIGHT`, pass `stars` prop to SkyHero
+- [x] Step dots updated: 3 of 3 → 4 of 4
+
+**`app/(tabs)/index.tsx` (home greeting + sky):**
+- [x] Read `userName` from `PatchContext`
+- [x] `greetingText`: if `userName` set → `"Morning, [name]"`; else → current `"Morning on [patch]"` (unchanged)
+- [x] Secondary line: if `userName` set → render `"on [patchName]"` (white, 55% opacity, same treatment as rotating phrase) replacing the rotating phrase; else → rotating phrase as today
+- [x] Pass `stars` prop to SkyHero when `skyForSighting()` returns `SKY_NIGHT`
+- [x] Long-press on greeting block still opens edit patch action sheet (no change)
+
+**`app/(tabs)/journal.tsx` (journal sky):**
+- [x] Replace hardcoded `SKY_DAY` with `skyForSighting()` — journal hero matches time of day
+- [x] Pass `stars` prop to SkyHero when night
+
+**Done when:** Onboarding runs SUNRISE → DAY → SUNSET → NIGHT across four screens. Night sky has stars. Name step saves to settings. Home greeting reads "Morning, [name]" + "on [patchName]". Home and journal show night sky with stars between 21:00–04:00. Existing users without a stored name fall back to current greeting. No regression to patch create, edit patch, or second-patch onboarding flow.
 
 ---
 

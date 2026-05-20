@@ -2,23 +2,24 @@ import {
   View, Text, Pressable, TextInput, StyleSheet,
   useWindowDimensions, KeyboardAvoidingView,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useRef, useEffect } from 'react';
+import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
 import { StepDots } from '@/components/StepDots';
-import { SKY_SUNSET } from '@/skies';
+import { SKY_DAY } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
+import { setSetting } from '@/db/database';
 
-export default function OnboardingName() {
+export default function OnboardingYourName() {
   const { height } = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
+  const db = useSQLiteContext();
   const { dispatch } = usePatch();
-  const params = useLocalSearchParams<{ currentName?: string; currentRadius?: string; editing?: string }>();
-  const isEditing = params.editing === 'true';
 
-  const [name, setName] = useState(params.currentName ?? '');
+  const [name, setName] = useState('');
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -28,55 +29,45 @@ export default function OnboardingName() {
 
   const canContinue = name.trim().length > 0;
 
-  function handleBack() {
-    if (isEditing) dispatch({ type: 'SET_EDITING_PATCH', payload: false });
-    router.back();
-  }
-
-  function handleContinue() {
-    const base = `/onboarding/size?patchName=${encodeURIComponent(name.trim())}`;
-    const url = isEditing
-      ? `${base}&editing=true&currentRadius=${params.currentRadius ?? '5'}`
-      : base;
-    router.push(url);
+  async function handleContinue() {
+    const trimmed = name.trim();
+    await setSetting(db, 'user_name', trimmed);
+    dispatch({ type: 'SET_USER_NAME', payload: trimmed });
+    router.push('/onboarding/name');
   }
 
   return (
     <View style={styles.container}>
-      <SkyHero bands={SKY_SUNSET} height={height} />
+      <SkyHero bands={SKY_DAY} height={height} />
 
       <KeyboardAvoidingView style={StyleSheet.absoluteFill} behavior="padding">
-        {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: top + space.md }]}>
-          <Pressable style={styles.back} onPress={handleBack}>
+          <Pressable style={styles.back} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={styles.barCenter}>
-            {!isEditing && <StepDots current={3} />}
+            <StepDots current={2} />
           </View>
           <View style={{ width: 36 }} />
         </View>
 
         <View style={{ flex: 1 }} />
 
-        {/* Form */}
         <View style={[styles.content, { paddingBottom: bottom + space.xl }]}>
-          <Text style={styles.eyebrow}>{isEditing ? 'Edit your patch' : 'Let\'s get started'}</Text>
-          <Text style={styles.headline}>Name your patch</Text>
+          <Text style={styles.eyebrow}>Let's get started</Text>
+          <Text style={styles.headline}>What should we call you?</Text>
           <TextInput
             ref={inputRef}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Riverside walk"
+            placeholder="Your first name"
             placeholderTextColor="rgba(255,255,255,0.35)"
             style={styles.input}
             returnKeyType="done"
             autoCapitalize="words"
             onSubmitEditing={() => { if (canContinue) handleContinue(); }}
           />
-          <Text style={styles.hint}>
-            Use the name you know it by — the reserve, the river walk, your back garden.
-          </Text>
+          <Text style={styles.hint}>Just your first name is fine.</Text>
           <Pressable
             style={[styles.cta, !canContinue && styles.ctaDisabled]}
             disabled={!canContinue}

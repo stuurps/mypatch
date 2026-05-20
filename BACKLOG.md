@@ -60,7 +60,7 @@ These have enough spec to start a task session immediately.
 | ID | Feature | Task | Size | Why now |
 |---|---|---|---|---|
 | B1 | Second patch (max 2) | Task 18 (fully scoped) | L | Structural gap; 2/4 Wave 2 personas; already spec'd in TASKS.md |
-| B2 | User name in onboarding | New — spec in TODO.md | S | "Personal above all" — opens warm personalisation throughout app |
+| B2 | User name in onboarding | Task 21 ✅ | S | "Personal above all" — opens warm personalisation throughout app |
 | B3 | Month stats on home | Bundle with home polish | S | "X species this month" — small count, immediate value, quick win |
 
 ---

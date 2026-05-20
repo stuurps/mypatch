@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useEffect, use } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter, useSegments } from 'expo-router';
-import { getFirstPatch } from '@/db/database';
+import { getFirstPatch, getSetting } from '@/db/database';
 import type { Patch } from '@/db/database';
 
 export type ToastPayload = {
@@ -14,13 +14,15 @@ type State = {
   isLoading: boolean;
   pendingToast: ToastPayload | null;
   editingPatch: boolean;
+  userName: string | null;
 };
 
 type Action =
   | { type: 'SET_PATCH'; payload: Patch | null }
   | { type: 'UPDATE_PATCH'; payload: Partial<Patch> }
   | { type: 'SET_TOAST'; payload: ToastPayload | null }
-  | { type: 'SET_EDITING_PATCH'; payload: boolean };
+  | { type: 'SET_EDITING_PATCH'; payload: boolean }
+  | { type: 'SET_USER_NAME'; payload: string | null };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -33,6 +35,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, pendingToast: action.payload };
     case 'SET_EDITING_PATCH':
       return { ...state, editingPatch: action.payload };
+    case 'SET_USER_NAME':
+      return { ...state, userName: action.payload };
     default:
       return state;
   }
@@ -44,14 +48,15 @@ const PatchContext = createContext<{
 } | null>(null);
 
 export function PatchProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { patch: null, isLoading: true, pendingToast: null, editingPatch: false });
+  const [state, dispatch] = useReducer(reducer, { patch: null, isLoading: true, pendingToast: null, editingPatch: false, userName: null });
   const db = useSQLiteContext();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
-    getFirstPatch(db).then(patch => {
+    Promise.all([getFirstPatch(db), getSetting(db, 'user_name')]).then(([patch, userName]) => {
       dispatch({ type: 'SET_PATCH', payload: patch ?? null });
+      dispatch({ type: 'SET_USER_NAME', payload: userName });
     });
   }, []);
 
