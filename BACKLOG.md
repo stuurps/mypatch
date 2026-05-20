@@ -59,7 +59,6 @@ These have enough spec to start a task session immediately.
 
 | ID | Feature | Task | Size | Why now |
 |---|---|---|---|---|
-| B1 | Second patch (max 2) | Task 18 (fully scoped) | L | Structural gap; 2/4 Wave 2 personas; already spec'd in TASKS.md |
 | B2 | User name in onboarding | Task 21 ✅ | S | "Personal above all" — opens warm personalisation throughout app |
 | B3 | Month stats on home | Bundle with home polish | S | "X species this month" — small count, immediate value, quick win |
 
@@ -74,6 +73,7 @@ These have a strong idea and user signal but need a task spec before building.
 | B4 | Session summary | M | After logging one or more sightings: a quiet closing moment before leaving the log screen. Not a report card — a punctuation mark. "Today at Fowlmere: Robin · Kingfisher · 2 Coots." Warm and brief. Clears on next visit. |
 | B5 | Milestone callouts on poster | S | On reaching 10, 25, 50 species at a patch: a quiet one-time callout in the hero — not a badge, not a streak. Something worth marking, said once. |
 | B6 | Sighting history browse by month | M | "Show me what I logged in October." Month picker → sightings for that period. Temporal memory — the thing that makes a year feel like a story, not a list. |
+| B11 | Settings screen | M | Profile settings (edit display name, edit patch name) + a user guide covering how to log, edit, and delete sightings + a "Contact us" section for feature requests and feedback. The guide should live inside the app — not a link out — so it feels native and personal. Contact route is email or a simple form, nothing social. |
 
 ---
 
@@ -83,10 +83,15 @@ These need either more data to be meaningful, a stronger format idea, or post-v1
 
 | ID | Feature | Size | Why later |
 |---|---|---|---|
+| B1 | Second patch (max 2) | L | Structural gap; 2/4 Wave 2 personas; spec'd in TASKS.md. Deprioritised May 2026 — activation problem takes precedence. |
 | B7 | "On this day" contextual moments | M | Surfaces historical moments on home — "You first heard a Cuckoo here two years ago today." Requires 1y+ of data to feel magical rather than empty. Should degrade gracefully for new users. |
 | B8 | Annual recap — "A year at [patch]" | L | End-of-year summary screen — the full story of 12 months in one view. Beautiful but only payable once a full cycle has passed. Design target: the thing someone screenshots and shares on 31 Dec. |
 | B9 | iOS widget — species count | L | Ambient count on the home screen — today's species, this year's total. Requires native iOS target. Build post-stabilisation. |
 | B10 | Journal × sightings integration | XL | Birds tagged within a journal entry instead of as separate sighting records. The deeper version of "one session = one entry." Major rethink of the data model and both UIs. Not v1. |
+| B12 | Empty state quality | S | What a brand new user sees before their first log. If 100 people download the app and 40 never log a bird, this is the problem. Inviting, not blank. Needs character. |
+| B13 | First sighting onboarding prompt | S | A quiet nudge immediately after onboarding — "Your patch is set. Log your first bird?" Lifts activation without pressure. One-time, non-repeating. |
+| B14 | Quick re-log | M | Regular patch visitors see the same birds daily. "Log again" shortcut from species detail or sighting history — reduces the daily logging habit to one tap. |
+| B15 | Journal editing | S | Can users edit or delete a journal entry? If not, this is a gap that will frustrate quickly. Audit what's missing from the MVP (Task 19) and fill it. |
 
 ---
 
@@ -104,5 +109,5 @@ These need either more data to be meaningful, a stronger format idea, or post-v1
 
 ---
 
-*Backlog version: 1.0 — May 2026*
+*Backlog version: 1.1 — May 2026*
 *Read alongside: WORKFLOW.md, TASKS.md, patch-project-context.md*

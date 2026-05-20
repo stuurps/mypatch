@@ -720,5 +720,43 @@ Ask for the user's first name as a new onboarding step. Changes the home hero fr
 
 ---
 
+## Task 22 — Session summary ✅
+
+The closing punctuation for every logging session. Currently the log screen evicts the user back to home after each species — anyone logging multiple birds has to bounce back and forth for each one. This task changes that: the log screen becomes stay-and-accumulate, a quiet session tally builds as you go, and when you tap Done a brief warm moment marks the end before returning home.
+
+**Design decisions:**
+- After "Add to patch", stay on the log screen — form resets inline, ready for the next bird
+- A session tally strip builds above the CTA: `Robin · Kingfisher · 2 Coots` — count shown only when > 1; inkFaint, small, unobtrusive
+- Same species logged again in a session: counts accumulate (2 × Robin then 1 × Robin = `3 Robin`)
+- "Done" replaces the header right-side spacer once sessionSpecies.length > 0 — white text, 36px tap target
+- Done → full-screen parchment summary overlay: patch name in amber small caps, species line below, auto-dismisses after 2s, tap anywhere dismisses sooner, both navigate to home
+- Back chevron: always navigates home quietly — no summary, no friction
+- Per-add toast fires unchanged — it confirms the individual log; summary is session-level
+- Session = component-local state; cleared on `useFocusEffect` (refocus = new session, not continuation)
+- "N species today" on home is unchanged
+- No DB changes
+
+**`app/(tabs)/log.tsx`:**
+- [x] Remove `router.navigate('/(tabs)')` from `handleAdd()` — stay on screen after add
+- [x] Add `sessionSpecies: { species: string; count: number }[]` to component state (default `[]`)
+- [x] In `handleAdd()` after `insertSighting`: upsert into `sessionSpecies` (accumulate count if already present), then reset form inline — clear query, selectedSpecies, count=1, notes; seenAt/timeOfDay reset to `new Date()`; conditions stay (existing session memory behaviour unchanged)
+- [x] Clear `sessionSpecies` in `useFocusEffect` (refocus = fresh session)
+- [x] Render session tally strip above the CTA when `sessionSpecies.length > 0` — format helper: count > 1 → `"2 Coots"`, count === 1 → `"Robin"`, joined by ` · `
+- [x] Header right: replace `<View style={{ width: 36 }} />` with conditional — `sessionSpecies.length > 0` → `Done` Pressable (white, weight 500), else spacer
+- [x] Add `showSummary: boolean` state (default false); Done press sets it true
+- [x] Render `<SessionSummaryOverlay>` when `showSummary` is true, pass `patchName` and `sessionSpecies`
+
+**New `components/SessionSummaryOverlay.tsx`:**
+- [x] Full-screen absolute overlay, `backgroundColor: colors.parchment`, centred content
+- [x] Patch name: amber small caps (from props)
+- [x] Species line: inkDark, 20px, weight 500 — formatted from `sessionSpecies`
+- [x] `useEffect` on mount: `setTimeout(dismiss, 2000)` — auto-dismiss
+- [x] `dismiss()`: clear timeout ref, call `onDismiss` (parent sets `showSummary: false` + `router.navigate('/(tabs)')`)
+- [x] Outer `Pressable` wrapping full screen — tap calls `dismiss()` immediately
+
+**Done when:** Logging a species keeps the user on the log screen with the form reset. Session tally builds above the CTA. Done button appears in the header after first add. Tapping Done shows the summary overlay with patch name and species list. Summary auto-dismisses after 2s; tap dismisses immediately; both navigate home. Back chevron goes home without a summary. "N species today" on home still works. Per-add toast unchanged. No regressions.
+
+---
+
 *Tasks version: 2.0 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*

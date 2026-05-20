@@ -19,6 +19,7 @@ import type { TimeOfDay } from '@/skies';
 import { TimeOfDayPicker } from '@/components/TimeOfDayPicker';
 import { ConditionsPicker } from '@/components/ConditionsPicker';
 import type { Conditions } from '@/components/ConditionsIcon';
+import { SessionSummaryOverlay } from '@/components/SessionSummaryOverlay';
 
 const PHENOLOGY = new Set(getWatchSpecies(currentSeason()).map(w => w.species));
 
@@ -43,6 +44,8 @@ export default function LogSighting() {
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => timeOfDayFromHour(new Date().getHours()));
   const [conditions, setConditions] = useState<Conditions | null>(lastConditions);
   const [loggedSpeciesSet, setLoggedSpeciesSet] = useState<Set<string>>(new Set());
+  const [sessionSpecies, setSessionSpecies] = useState<{ species: string; count: number }[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,6 +58,8 @@ export default function LogSighting() {
       setShowDatePicker(false);
       setTimeOfDay(timeOfDayFromHour(now.getHours()));
       setConditions(lastConditions);
+      setSessionSpecies([]);
+      setShowSummary(false);
       if (!state.patch) return;
       db.getAllAsync<{ species: string }>(
         'SELECT DISTINCT species FROM sightings WHERE patch_id = ?',
@@ -99,7 +104,27 @@ export default function LogSighting() {
 
     await insertSighting(db, sighting);
     dispatch({ type: 'SET_TOAST', payload: { species: selectedSpecies, type: toastType } });
-    router.navigate('/(tabs)');
+
+    const addedSpecies = selectedSpecies;
+    const addedCount = count;
+
+    setSessionSpecies(prev => {
+      const existing = prev.find(s => s.species === addedSpecies);
+      if (existing) {
+        return prev.map(s => s.species === addedSpecies ? { ...s, count: s.count + addedCount } : s);
+      }
+      return [...prev, { species: addedSpecies, count: addedCount }];
+    });
+    setLoggedSpeciesSet(prev => new Set([...prev, addedSpecies]));
+
+    const now2 = new Date();
+    setQuery('');
+    setSelectedSpecies(null);
+    setCount(1);
+    setNotes('');
+    setSeenAt(now2);
+    setShowDatePicker(false);
+    setTimeOfDay(timeOfDayFromHour(now2.getHours()));
   }
 
   const canAdd = !!selectedSpecies;
@@ -241,15 +266,50 @@ export default function LogSighting() {
           />
         </View>
 
+        {/* Session tally */}
+        {sessionSpecies.length > 0 && (
+          <Text style={styles.sessionTally}>
+            {sessionSpecies.map(s => s.count > 1 ? `${s.count} ${s.species}` : s.species).join(' · ')}
+          </Text>
+        )}
+
         {/* CTA */}
         <Pressable
           style={[styles.cta, !canAdd && styles.ctaDisabled]}
           onPress={handleAdd}
           disabled={!canAdd}
         >
-          <Text style={styles.ctaText}>Add to patch</Text>
+          <Text style={styles.ctaText}>
+            {sessionSpecies.length > 0 ? 'Add another sighting' : `Add to ${state.patch?.name ?? 'patch'}`}
+          </Text>
         </Pressable>
+
+        {sessionSpecies.length > 0 && (
+          <Pressable
+            style={styles.ctaFinished}
+            onPress={() => {
+              if (sessionSpecies.length > 1) {
+                setShowSummary(true);
+              } else {
+                router.navigate('/(tabs)');
+              }
+            }}
+          >
+            <Text style={styles.ctaText}>Finished</Text>
+          </Pressable>
+        )}
       </ScrollView>
+
+      {showSummary && state.patch && (
+        <SessionSummaryOverlay
+          patchName={state.patch.name}
+          sessionSpecies={sessionSpecies}
+          onDismiss={() => {
+            setShowSummary(false);
+            router.navigate('/(tabs)');
+          }}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -284,6 +344,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: colors.white,
+  },
+
+  ctaFinished: {
+    backgroundColor: colors.amber,
+    borderRadius: radius.button,
+    paddingVertical: space.md,
+    alignItems: 'center',
+    opacity: 0.7,
+  },
+
+  sessionTally: {
+    ...t.label,
+    color: colors.inkFaint,
+    textAlign: 'center',
+    paddingVertical: space.xs,
   },
 
   scroll: { flex: 1 },

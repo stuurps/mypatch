@@ -37,18 +37,7 @@ function groupByDate(entries: JournalEntry[]): Section[] {
 
 const HERO_HEIGHT = 260;
 
-const PHRASES = [
-  "Your patch is waiting",
-  "What's out there today?",
-  "Every visit counts",
-  "Quiet eyes, open ears",
-  "You know this place",
-  "The birds are ahead of you",
-  "Log what you find",
-];
-let phraseIndexCounter = 0;
-
-function greetingText(patchName: string, userName: string | null): string {
+function greetingText(userName: string | null): string {
   const h = new Date().getHours();
   let period: string;
   if (h >= 5 && h <= 11) period = 'Morning';
@@ -56,13 +45,7 @@ function greetingText(patchName: string, userName: string | null): string {
   else if (h >= 17 && h <= 20) period = 'Evening';
   else period = 'Night';
   if (userName) return `${period}, ${userName}`;
-  return `${period} on ${patchName}`;
-}
-
-function nextPhrase(): string {
-  const phrase = PHRASES[phraseIndexCounter % PHRASES.length];
-  phraseIndexCounter++;
-  return phrase;
+  return period;
 }
 
 export default function JournalScreen() {
@@ -72,7 +55,6 @@ export default function JournalScreen() {
 
   const [journalSky] = useState(skyForSighting);
   const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
-  const [phrase] = useState(() => nextPhrase());
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
   const [sections, setSections] = useState<Section[]>([]);
@@ -97,8 +79,8 @@ export default function JournalScreen() {
     <View style={styles.root}>
       <SkyHero bands={journalSky} height={HERO_HEIGHT} showTrees={false} stars={isNight}>
         <View style={styles.heroGreeting}>
-          <Text style={styles.greetingLine}>{greetingText(state.patch?.name ?? '', state.userName)}</Text>
-          <Text style={styles.greetingPhrase}>{state.userName ? `on ${state.patch?.name ?? ''}` : phrase}</Text>
+          <Text style={styles.greetingLine}>{greetingText(state.userName)}</Text>
+          <Text style={styles.greetingPhrase}>Your {state.patch?.name ?? 'patch'}</Text>
         </View>
       </SkyHero>
 
