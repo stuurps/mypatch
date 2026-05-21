@@ -28,8 +28,8 @@ function greetingText(userName: string | null): string {
 import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
 import {
-  getYearSightingsCount, getAllTimeSightingsCount,
-  getRecentSightings, getYearSpeciesList, getAllTimeSpeciesCount,
+  getYearSpeciesCount, getAllTimeSpeciesCount, getMonthSpeciesCount,
+  getRecentSightings, getYearSpeciesList,
 } from '@/db/database';
 import type { Sighting } from '@/db/database';
 import { getWatchSpecies, currentSeason } from '@/data/phenology';
@@ -92,7 +92,7 @@ export default function PatchHome() {
 
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
-  const [allTimeSpeciesCount, setAllTimeSpeciesCount] = useState(0);
+  const [monthSpeciesCount, setMonthSpeciesCount] = useState(0);
   const [recentSightings, setRecentSightings] = useState<Sighting[]>([]);
   const [yearSpecies, setYearSpecies] = useState<string[]>([]);
 
@@ -104,17 +104,19 @@ export default function PatchHome() {
 
   const loadData = useCallback(async () => {
     if (!state.patch) return;
-    const year = new Date().getFullYear();
-    const [yc, atc, atsc, recent, ys] = await Promise.all([
-      getYearSightingsCount(db, state.patch.id, year),
-      getAllTimeSightingsCount(db, state.patch.id),
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const [yc, atc, mc, recent, ys] = await Promise.all([
+      getYearSpeciesCount(db, state.patch.id, year),
       getAllTimeSpeciesCount(db, state.patch.id),
+      getMonthSpeciesCount(db, state.patch.id, year, month),
       getRecentSightings(db, state.patch.id),
       getYearSpeciesList(db, state.patch.id, year),
     ]);
     setYearCount(yc);
     setAllTimeCount(atc);
-    setAllTimeSpeciesCount(atsc);
+    setMonthSpeciesCount(mc);
     setRecentSightings(recent);
     setYearSpecies(ys);
   }, [state.patch?.id]);
@@ -203,12 +205,15 @@ export default function PatchHome() {
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <View style={[styles.statBox, styles.statBoxLeft]}>
-          <Text style={styles.statNumber}>{yearCount}</Text>
-          <Text style={styles.statLabel}>Sightings this year</Text>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{monthSpeciesCount}</Text>
+          <Text style={styles.statLabel}>This month</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={[styles.statBox, styles.statBoxRight]}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{yearCount}</Text>
+          <Text style={styles.statLabel}>This year</Text>
+        </View>
+        <View style={styles.statBox}>
           <Text style={styles.statNumber}>{allTimeCount}</Text>
           <Text style={styles.statLabel}>All time</Text>
         </View>
@@ -231,8 +236,8 @@ export default function PatchHome() {
           <Text style={styles.patchLinkText}>Your list</Text>
         </View>
         <View style={styles.patchLinkRight}>
-          {allTimeSpeciesCount > 0 && (
-            <Text style={styles.patchLinkStat}>{allTimeSpeciesCount} species</Text>
+          {allTimeCount > 0 && (
+            <Text style={styles.patchLinkStat}>{allTimeCount} species</Text>
           )}
           <Text style={styles.patchLinkChevron}>›</Text>
         </View>
@@ -278,7 +283,7 @@ export default function PatchHome() {
       )}
     </>
     );
-  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
+  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
 
 
   return (
@@ -355,9 +360,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.parchmentBorder,
   },
-  statBoxLeft: {},
-  statBoxRight: {},
-  statDivider: { display: 'none' },
   statNumber: { ...t.statLarge },
   statLabel: { ...t.label },
 

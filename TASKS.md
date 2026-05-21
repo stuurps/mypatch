@@ -758,5 +758,30 @@ The closing punctuation for every logging session. Currently the log screen evic
 
 ---
 
+## Task 23 — Month stats on home
+
+A quiet count on the home screen showing how many species you've seen this month. Immediate value for any returning user — you know at a glance whether this is an active month or a quiet one. No new navigation, no new screen. Just a number.
+
+**Design decisions:**
+- Three stat boxes in a row: `Species this year` · `All time` · `This month` — all showing distinct species counts for consistency (previously year and all-time showed sightings counts; switching all three to species counts is more meaningful and internally consistent)
+- Always visible, even at 0 — consistent with existing stat boxes
+- Labels: "This year" / "All time" / "This month"
+- Three equal `flex-1` boxes; slightly narrower than the current two-box layout but comfortable on all iPhone sizes
+
+**`db/database.ts`:**
+- [x] Add `getMonthSpeciesCount(db, patchId, year, month): Promise<number>` — `SELECT COUNT(DISTINCT species) FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ? AND strftime('%m', seen_at) = ?`
+
+**`app/(tabs)/index.tsx`:**
+- [x] Replace `getYearSightingsCount` with `getYearSpeciesCount` (already exists as `getYearSpeciesCount`) — swap `yearCount` state to hold species count
+- [x] Replace `getAllTimeSightingsCount` with `getAllTimeSpeciesCount` — swap `allTimeCount` state to hold species count
+- [x] Add `monthSpeciesCount` state (default 0)
+- [x] In `loadData` `Promise.all`: add `getMonthSpeciesCount(db, patchId, year, month)` call
+- [x] Stats row: update labels to "This year" / "All time" / "This month"; add third box using `monthSpeciesCount`
+- [x] Remove `allTimeSpeciesCount` state and its `getAllTimeSpeciesCount` call — now redundant with the renamed all-time box
+
+**Done when:** Stats row shows three boxes, all species counts. "This month" is correct after logging. "This year" and "All time" update correctly. The "Your list" species count link is unaffected. No regression to patch photo or species detail.
+
+---
+
 *Tasks version: 2.0 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*

@@ -262,10 +262,26 @@ export async function getAllTimeJournalCount(db: SQLiteDatabase, patchId: string
   return row?.count ?? 0;
 }
 
+export async function getMonthJournalCount(db: SQLiteDatabase, patchId: string, year: number, month: number): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM journal WHERE patch_id = ? AND strftime('%Y', created_at) = ? AND strftime('%m', created_at) = ?`,
+    patchId, String(year), String(month).padStart(2, '0'),
+  );
+  return row?.count ?? 0;
+}
+
 export async function getYearSpeciesList(db: SQLiteDatabase, patchId: string, year: number) {
   const rows = await db.getAllAsync<{ species: string }>(
     `SELECT DISTINCT species FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ?`,
     patchId, String(year),
   );
   return rows.map(r => r.species);
+}
+
+export async function getMonthSpeciesCount(db: SQLiteDatabase, patchId: string, year: number, month: number): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(DISTINCT species) as count FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ? AND strftime('%m', seen_at) = ?`,
+    patchId, String(year), String(month).padStart(2, '0'),
+  );
+  return row?.count ?? 0;
 }

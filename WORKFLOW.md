@@ -77,8 +77,9 @@ Do not summarise what the code does. Summarise what was decided and why.
 Before ending a session where a task was completed:
 
 1. Check off all completed items in TASKS.md
-2. Write `releases/T[N]-[slug].md`
-3. Update `memory/project-patch.md` task progress if the task status changed
+2. Run `/simplify` to review changed code for quality
+3. Write `releases/T[N]-[slug].md`
+4. Update `memory/project-patch.md` task progress if the task status changed
 
 ---
 

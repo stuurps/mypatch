@@ -60,7 +60,7 @@ These have enough spec to start a task session immediately.
 | ID | Feature | Task | Size | Why now |
 |---|---|---|---|---|
 | B2 | User name in onboarding | Task 21 ✅ | S | "Personal above all" — opens warm personalisation throughout app |
-| B3 | Month stats on home | Bundle with home polish | S | "X species this month" — small count, immediate value, quick win |
+| B3 | Month stats on home | Task 23 | S | "X species this month" — small count, immediate value, quick win |
 
 ---
 
@@ -70,7 +70,7 @@ These have a strong idea and user signal but need a task spec before building.
 
 | ID | Feature | Size | Direction |
 |---|---|---|---|
-| B4 | Session summary | M | After logging one or more sightings: a quiet closing moment before leaving the log screen. Not a report card — a punctuation mark. "Today at Fowlmere: Robin · Kingfisher · 2 Coots." Warm and brief. Clears on next visit. |
+| B4 | Session summary — Task 22 ✅ | M | After logging one or more sightings: a quiet closing moment before leaving the log screen. Not a report card — a punctuation mark. "Today at Fowlmere: Robin · Kingfisher · 2 Coots." Warm and brief. Clears on next visit. |
 | B5 | Milestone callouts on poster | S | On reaching 10, 25, 50 species at a patch: a quiet one-time callout in the hero — not a badge, not a streak. Something worth marking, said once. |
 | B6 | Sighting history browse by month | M | "Show me what I logged in October." Month picker → sightings for that period. Temporal memory — the thing that makes a year feel like a story, not a list. |
 | B11 | Settings screen | M | Profile settings (edit display name, edit patch name) + a user guide covering how to log, edit, and delete sightings + a "Contact us" section for feature requests and feedback. The guide should live inside the app — not a link out — so it feels native and personal. Contact route is email or a simple form, nothing social. |

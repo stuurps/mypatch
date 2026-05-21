@@ -7,7 +7,7 @@ import { SkyHero } from '@/components/SkyHero';
 import { skyForSighting, timeOfDayFromHour } from '@/skies';
 import { colors, type as t, space, radius } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
-import { getYearJournalCount, getAllTimeJournalCount, getJournalEntries, JournalEntry } from '@/db/database';
+import { getYearJournalCount, getAllTimeJournalCount, getMonthJournalCount, getJournalEntries, JournalEntry } from '@/db/database';
 import { formatDate } from '@/utils/format';
 
 type Section = { title: string; data: JournalEntry[] };
@@ -57,19 +57,24 @@ export default function JournalScreen() {
   const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
+  const [monthCount, setMonthCount] = useState(0);
   const [sections, setSections] = useState<Section[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       if (!state.patch) return;
-      const year = new Date().getFullYear();
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
       Promise.all([
         getYearJournalCount(db, state.patch.id, year),
         getAllTimeJournalCount(db, state.patch.id),
+        getMonthJournalCount(db, state.patch.id, year, month),
         getJournalEntries(db, state.patch.id),
-      ]).then(([yc, atc, ents]) => {
+      ]).then(([yc, atc, mc, ents]) => {
         setYearCount(yc);
         setAllTimeCount(atc);
+        setMonthCount(mc);
         setSections(groupByDate(ents));
       });
     }, [state.patch?.id]),
@@ -85,12 +90,15 @@ export default function JournalScreen() {
       </SkyHero>
 
       <View style={styles.statsRow}>
-        <View style={[styles.statBox, styles.statBoxLeft]}>
-          <Text style={styles.statNumber}>{yearCount}</Text>
-          <Text style={styles.statLabel}>Entries this year</Text>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{monthCount}</Text>
+          <Text style={styles.statLabel}>This month</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={[styles.statBox, styles.statBoxRight]}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{yearCount}</Text>
+          <Text style={styles.statLabel}>This year</Text>
+        </View>
+        <View style={styles.statBox}>
           <Text style={styles.statNumber}>{allTimeCount}</Text>
           <Text style={styles.statLabel}>All time</Text>
         </View>
@@ -185,9 +193,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.parchmentBorder,
   },
-  statBoxLeft: {},
-  statBoxRight: {},
-  statDivider: { display: 'none' },
   statNumber: { ...t.statLarge },
   statLabel: { ...t.label },
 
