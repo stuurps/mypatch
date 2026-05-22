@@ -89,7 +89,7 @@ export default function EditSighting() {
   async function handleSave() {
     if (!selectedSpecies || !id) return;
     await updateSighting(db, id, selectedSpecies, count, notes.trim() || null, seenAt.toISOString(), timeOfDay, conditions);
-    router.navigate('/(tabs)');
+    router.back();
   }
 
   function confirmDelete() {
@@ -107,7 +107,7 @@ export default function EditSighting() {
     if (!id || !selectedSpecies) return;
     await deleteSighting(db, id);
     dispatch({ type: 'SET_TOAST', payload: { species: selectedSpecies, type: 'deleted' } });
-    router.navigate('/(tabs)');
+    router.back();
   }
 
   const canSave = !!selectedSpecies && ready;
@@ -119,7 +119,7 @@ export default function EditSighting() {
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: top + space.sm }]}>
-        <Pressable style={styles.backBtn} onPress={() => router.navigate('/(tabs)')}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Edit sighting</Text>
