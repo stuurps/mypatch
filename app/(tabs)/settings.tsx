@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { colors, type as t, space } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';

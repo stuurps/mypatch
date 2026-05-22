@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, SectionList } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { View, Text, StyleSheet, SectionList, Pressable } from 'react-native';
+import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
