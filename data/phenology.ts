@@ -51,3 +51,7 @@ export function currentSeason(): Season {
 export function getWatchSpecies(season?: Season): WatchSpecies[] {
   return SEASONAL_WATCH[season ?? currentSeason()];
 }
+
+export const PHENOLOGY_HINTS: Record<string, string> = Object.fromEntries(
+  (Object.values(SEASONAL_WATCH) as WatchSpecies[][]).flat().map(w => [w.species, w.hint]),
+);

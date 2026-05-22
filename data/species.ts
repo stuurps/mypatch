@@ -111,3 +111,33 @@ export const SPECIES: string[] = [
   // Buntings
   'Lapland Bunting', 'Snow Bunting', 'Yellowhammer', 'Corn Bunting', 'Reed Bunting',
 ];
+
+function matchScore(name: string, query: string): number {
+  const lower = name.toLowerCase();
+  const q = query.toLowerCase();
+  if (lower.startsWith(q)) return 3;
+  if (lower.split(' ').some(w => w.startsWith(q))) return 2;
+  if (lower.includes(q)) return 1;
+  return 0;
+}
+
+export function rankSpecies(
+  query: string,
+  sessionSet: ReadonlySet<string>,
+  loggedSet: ReadonlySet<string>,
+  phenologySet: ReadonlySet<string>,
+  limit = 8,
+): string[] {
+  const results: { species: string; score: number }[] = [];
+  for (const s of SPECIES) {
+    const ms = matchScore(s, query);
+    if (ms === 0) continue;
+    let priority = 0;
+    if (sessionSet.has(s)) priority = 30;
+    else if (loggedSet.has(s)) priority = 20;
+    else if (phenologySet.has(s)) priority = 10;
+    results.push({ species: s, score: ms + priority });
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, limit).map(x => x.species);
+}

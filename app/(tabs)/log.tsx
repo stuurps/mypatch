@@ -1,15 +1,15 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as ExpoCrypto from 'expo-crypto';
-import { SPECIES } from '@/data/species';
-import { getWatchSpecies, currentSeason } from '@/data/phenology';
+import { SPECIES, rankSpecies } from '@/data/species';
+import { getWatchSpecies, currentSeason, PHENOLOGY_HINTS } from '@/data/phenology';
 import { insertSighting, hasSpeciesBeenLogged } from '@/db/database';
 import type { Sighting } from '@/db/database';
 import { usePatch } from '@/context/PatchContext';
@@ -43,6 +43,7 @@ export default function LogSighting() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => timeOfDayFromHour(new Date().getHours()));
   const [conditions, setConditions] = useState<Conditions | null>(lastConditions);
+  const [isFocused, setIsFocused] = useState(false);
   const [loggedSpeciesSet, setLoggedSpeciesSet] = useState<Set<string>>(new Set());
   const [sessionSpecies, setSessionSpecies] = useState<{ species: string; count: number }[]>([]);
   const [showSummary, setShowSummary] = useState(false);
@@ -60,6 +61,7 @@ export default function LogSighting() {
       setConditions(lastConditions);
       setSessionSpecies([]);
       setShowSummary(false);
+      setIsFocused(false);
       if (!state.patch) return;
       db.getAllAsync<{ species: string }>(
         'SELECT DISTINCT species FROM sightings WHERE patch_id = ?',
@@ -68,15 +70,27 @@ export default function LogSighting() {
     }, [state.patch?.id]),
   );
 
+  const sessionSet = new Set(sessionSpecies.map(s => s.species));
+
   const results = query.length >= 2 && !selectedSpecies
-    ? SPECIES.filter(s => s.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+    ? rankSpecies(query, sessionSet, loggedSpeciesSet, PHENOLOGY, 8)
     : [];
 
   const showFreeText = query.length >= 2 && !selectedSpecies &&
     !SPECIES.some(s => s.toLowerCase() === query.toLowerCase().trim());
 
+  const zeroQuerySuggestions: string[] = isFocused && query.length === 0 && !selectedSpecies
+    ? [
+        ...[...sessionSpecies].reverse().map(s => s.species),
+        ...getWatchSpecies(currentSeason())
+          .filter(w => !sessionSet.has(w.species))
+          .map(w => w.species),
+      ].slice(0, 5)
+    : [];
+
   function getHint(species: string): { text: string; accent: boolean } {
-    if (PHENOLOGY.has(species)) return { text: 'expected soon', accent: true };
+    if (sessionSet.has(species)) return { text: 'this session', accent: true };
+    if (PHENOLOGY.has(species)) return { text: PHENOLOGY_HINTS[species] ?? 'expected now', accent: true };
     if (!loggedSpeciesSet.has(species)) return { text: 'new for your patch', accent: true };
     return { text: 'on your patch', accent: false };
   }
@@ -120,6 +134,7 @@ export default function LogSighting() {
     });
     setLoggedSpeciesSet(prev => new Set([...prev, addedSpecies]));
 
+    Keyboard.dismiss();
     const now2 = new Date();
     setQuery('');
     setSelectedSpecies(null);
@@ -162,13 +177,31 @@ export default function LogSighting() {
               setQuery(text);
               if (selectedSpecies) setSelectedSpecies(null);
             }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             placeholder="Start typing…"
             placeholderTextColor={colors.inkFaint}
             autoCorrect={false}
             autoCapitalize="words"
           />
-          {(results.length > 0 || showFreeText) && (
+          {(zeroQuerySuggestions.length > 0 || results.length > 0 || showFreeText) && (
             <View style={styles.dropdown}>
+              {zeroQuerySuggestions.map((species, i) => {
+                const hint = getHint(species);
+                const isLast = i === zeroQuerySuggestions.length - 1;
+                return (
+                  <Pressable
+                    key={species}
+                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
+                    onPress={() => selectSpecies(species)}
+                  >
+                    <Text style={styles.dropdownSpecies}>{species}</Text>
+                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>
+                      {hint.text}
+                    </Text>
+                  </Pressable>
+                );
+              })}
               {results.map((species, i) => {
                 const hint = getHint(species);
                 return (
