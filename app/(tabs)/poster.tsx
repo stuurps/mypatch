@@ -11,6 +11,7 @@ import { usePatch } from '@/context/PatchContext';
 import {
   getPatchSpeciesWithCounts, getPatchSpecies,
   getAllTimeSightingsCount, getFirstSightingDate,
+  getSetting, setSetting,
 } from '@/db/database';
 import { colors, type as t, space, radius } from '@/tokens';
 import { formatSince } from '@/utils/format';
@@ -19,6 +20,12 @@ const CURRENT_YEAR = new Date().getFullYear();
 const TILE_GAP = space.sm;
 const TILE_COLS = 3;
 const HERO_HEIGHT = 220;
+const MILESTONES = [50, 25, 10];
+const MILESTONE_COPY: Record<number, string> = {
+  10: '10 species. A real patch list.',
+  25: '25 species. You know this place.',
+  50: '50 species. Your patch is alive.',
+};
 
 type SpeciesStat = { species: string; record_count: number };
 
@@ -33,21 +40,32 @@ export default function YourPatch() {
   const [yearSpecies, setYearSpecies] = useState<Set<string>>(new Set());
   const [totalRecords, setTotalRecords] = useState(0);
   const [firstSeen, setFirstSeen] = useState<string | null>(null);
+  const [activeMilestone, setActiveMilestone] = useState<number | null>(null);
 
   const tileWidth = (width - space.md * 2 - TILE_GAP * (TILE_COLS - 1)) / TILE_COLS;
 
   useEffect(() => {
     if (!state.patch) return;
+    const patchId = state.patch.id;
     Promise.all([
-      getPatchSpeciesWithCounts(db, state.patch.id),
-      getPatchSpecies(db, state.patch.id, CURRENT_YEAR),
-      getAllTimeSightingsCount(db, state.patch.id),
-      getFirstSightingDate(db, state.patch.id),
-    ]).then(([all, year, records, first]) => {
+      getPatchSpeciesWithCounts(db, patchId),
+      getPatchSpecies(db, patchId, CURRENT_YEAR),
+      getAllTimeSightingsCount(db, patchId),
+      getFirstSightingDate(db, patchId),
+    ]).then(async ([all, year, records, first]) => {
       setAllSpecies(all);
       setYearSpecies(new Set(year));
       setTotalRecords(records);
       setFirstSeen(first);
+
+      let found: number | null = null;
+      for (const threshold of MILESTONES) {
+        if (all.length >= threshold) {
+          const seen = await getSetting(db, `milestone_shown_${patchId}_${threshold}`);
+          if (!seen) { found = threshold; break; }
+        }
+      }
+      setActiveMilestone(found);
     });
   }, [state.patch?.id]);
 
@@ -61,6 +79,12 @@ export default function YourPatch() {
     if (aAmber !== bAmber) return aAmber ? -1 : 1;
     return a.species.localeCompare(b.species);
   });
+
+  async function dismissMilestone() {
+    if (!activeMilestone || !state.patch) return;
+    await setSetting(db, `milestone_shown_${state.patch.id}_${activeMilestone}`, '1');
+    setActiveMilestone(null);
+  }
 
   const statsLine = firstSeen
     ? `${totalRecords} records · since ${formatSince(firstSeen)}`
@@ -84,6 +108,11 @@ export default function YourPatch() {
           <Text style={styles.heroCount}>{allSpecies.length}</Text>
           <Text style={styles.heroLabel}>SPECIES</Text>
           {statsLine != null && <Text style={styles.heroStats}>{statsLine}</Text>}
+          {activeMilestone !== null && (
+            <Pressable onPress={dismissMilestone} hitSlop={8}>
+              <Text style={styles.heroMilestone}>{MILESTONE_COPY[activeMilestone]}</Text>
+            </Pressable>
+          )}
         </View>
       </View>
       <View style={styles.filterBar}>
@@ -194,6 +223,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.55)',
     marginTop: 6,
+  },
+  heroMilestone: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.amber,
+    marginTop: 8,
+    textAlign: 'center',
   },
 
   filterBar: {

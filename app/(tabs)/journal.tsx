@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, SectionList, Pressable } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { View, Text, StyleSheet, SectionList } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { SkyHero } from '@/components/SkyHero';
@@ -106,13 +106,6 @@ export default function JournalScreen() {
 
       <View style={styles.listHeader}>
         <Text style={styles.listHeaderLabel}>Your entries</Text>
-        <Pressable
-          style={styles.composeBtn}
-          hitSlop={8}
-          onPress={() => router.push('/(tabs)/journal-compose')}
-        >
-          <Text style={styles.composeBtnText}>+</Text>
-        </Pressable>
       </View>
 
       <SectionList
@@ -198,17 +191,12 @@ const styles = StyleSheet.create({
   statLabel: { ...t.label },
 
   listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.parchmentBorder,
   },
   listHeaderLabel: { ...t.label },
-  composeBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  composeBtnText: { fontSize: 22, color: colors.amber, lineHeight: 26 },
 
   list: { flex: 1 },
   sectionHeader: {

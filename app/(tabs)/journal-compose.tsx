@@ -1,9 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as ExpoCrypto from 'expo-crypto';
@@ -15,6 +16,7 @@ import { formatDate } from '@/utils/format';
 export default function JournalCompose() {
   const { state } = usePatch();
   const db = useSQLiteContext();
+  const navigation = useNavigation();
   const { top, bottom } = useSafeAreaInsets();
   const [body, setBody] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -28,18 +30,30 @@ export default function JournalCompose() {
     }, []),
   );
 
-  async function handleBack() {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    if (body.trim() && state.patch) {
-      await insertJournalEntry(db, {
-        id: ExpoCrypto.randomUUID(),
-        patch_id: state.patch.id,
-        body: body.trim(),
-        created_at: new Date().toISOString(),
-      });
-    }
-    router.navigate('/(tabs)/journal');
+  // Intercepts all back gestures (swipe, hardware back, button) so the entry
+  // is always saved regardless of how the user leaves the screen.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (savingRef.current) return;
+      savingRef.current = true;
+      e.preventDefault();
+      (async () => {
+        if (body.trim() && state.patch) {
+          await insertJournalEntry(db, {
+            id: ExpoCrypto.randomUUID(),
+            patch_id: state.patch.id,
+            body: body.trim(),
+            created_at: new Date().toISOString(),
+          });
+        }
+        navigation.dispatch(e.data.action);
+      })();
+    });
+    return unsubscribe;
+  }, [navigation, body, state.patch, db]);
+
+  function handleBack() {
+    router.back();
   }
 
   return (

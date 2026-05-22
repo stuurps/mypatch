@@ -30,11 +30,9 @@ import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
 import {
   getYearSpeciesCount, getAllTimeSpeciesCount, getMonthSpeciesCount,
-  getRecentSightings, getYearSpeciesList,
+  getRecentSightings,
 } from '@/db/database';
 import type { Sighting } from '@/db/database';
-import { getWatchSpecies, currentSeason } from '@/data/phenology';
-import type { WatchSpecies } from '@/data/phenology';
 import { formatDate } from '@/utils/format';
 
 const HERO_HEIGHT = 260;
@@ -95,7 +93,6 @@ export default function PatchHome() {
   const [allTimeCount, setAllTimeCount] = useState(0);
   const [monthSpeciesCount, setMonthSpeciesCount] = useState(0);
   const [recentSightings, setRecentSightings] = useState<Sighting[]>([]);
-  const [yearSpecies, setYearSpecies] = useState<string[]>([]);
 
   const [homeSky] = useState(skyForSighting);
   const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
@@ -108,18 +105,16 @@ export default function PatchHome() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const [yc, atc, mc, recent, ys] = await Promise.all([
+    const [yc, atc, mc, recent] = await Promise.all([
       getYearSpeciesCount(db, state.patch.id, year),
       getAllTimeSpeciesCount(db, state.patch.id),
       getMonthSpeciesCount(db, state.patch.id, year, month),
       getRecentSightings(db, state.patch.id),
-      getYearSpeciesList(db, state.patch.id, year),
     ]);
     setYearCount(yc);
     setAllTimeCount(atc);
     setMonthSpeciesCount(mc);
     setRecentSightings(recent);
-    setYearSpecies(ys);
   }, [state.patch?.id]);
 
   useFocusEffect(
@@ -146,18 +141,6 @@ export default function PatchHome() {
       );
     }, 2400);
   }
-
-  const watchSpecies = useMemo<WatchSpecies[]>(() => {
-    return getWatchSpecies(currentSeason())
-      .slice()
-      .sort((a, b) => {
-        const aLogged = yearSpecies.includes(a.species);
-        const bLogged = yearSpecies.includes(b.species);
-        if (aLogged === bLogged) return 0;
-        return aLogged ? 1 : -1;
-      })
-      .slice(0, 3);
-  }, [yearSpecies]);
 
   const todaySightings = useMemo(() => recentSightings.filter(s => isToday(s.seen_at)), [recentSightings]);
   const earlierSightings = useMemo(() => recentSightings.filter(s => !isToday(s.seen_at)), [recentSightings]);
@@ -251,20 +234,6 @@ export default function PatchHome() {
         </View>
       </Pressable>
 
-      {/* Keep an eye out */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Keep an eye out</Text>
-        {watchSpecies.map(ws => (
-          <View key={ws.species} style={styles.watchRow}>
-            <View style={styles.watchText}>
-              <Text style={styles.watchSpecies}>{ws.species}</Text>
-              <Text style={styles.watchHint}>{ws.hint}</Text>
-            </View>
-            <View style={[styles.watchDot, { opacity: ws.imminent ? 1 : 0.35 }]} />
-          </View>
-        ))}
-      </View>
-
       {/* Empty state */}
       {recentSightings.length === 0 && (
         <View style={styles.emptyState}>
@@ -295,7 +264,7 @@ export default function PatchHome() {
       )}
     </>
     );
-  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length, top]);
+  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length, top]);
 
 
   return (
@@ -418,12 +387,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  section: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.lg,
-    paddingBottom: space.sm,
-    gap: 0,
-  },
   sectionHeader: {
     paddingHorizontal: space.lg,
     paddingTop: space.lg,
@@ -432,24 +395,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...t.label,
     marginBottom: space.md,
-  },
-
-  watchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.parchmentBorder,
-  },
-  watchText: { flex: 1, gap: 2 },
-  watchSpecies: { ...t.speciesName },
-  watchHint: { ...t.body, fontSize: 12 },
-  watchDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.amber,
-    marginLeft: space.sm,
   },
 
   sightingRow: {

@@ -1,15 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSQLiteContext } from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { colors, type as t, space } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
+import { getAllPatches, getAllSightings, getAllJournalEntries } from '@/db/database';
 
 const HEADER_BG = '#2d3b2a';
 
 export default function SettingsScreen() {
   const { top } = useSafeAreaInsets();
   const { state, dispatch } = usePatch();
+  const db = useSQLiteContext();
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const [patches, sightings, journal] = await Promise.all([
+        getAllPatches(db),
+        getAllSightings(db),
+        getAllJournalEntries(db),
+      ]);
+      const date = new Date().toISOString().slice(0, 10);
+      const json = JSON.stringify({ exported_at: new Date().toISOString(), patches, sightings, journal }, null, 2);
+      const path = `${FileSystem.cacheDirectory}patch-export-${date}.json`;
+      await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: 'Export your Patch data' });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function editPatch() {
     if (!state.patch) return;
@@ -67,9 +92,18 @@ export default function SettingsScreen() {
       <View style={styles.sectionLabel}>
         <Text style={styles.sectionLabelText}>Feedback</Text>
       </View>
-      <Pressable style={styles.row} onPress={() => Linking.openURL('mailto:hello@patch.app')}>
+      <Pressable style={styles.row} onPress={() => Linking.openURL('https://github.com/stuurps/mypatch/issues')}>
         <Text style={styles.rowLabel}>Send feedback</Text>
         <Text style={styles.chevron}>›</Text>
+      </Pressable>
+      <View style={styles.sectionLabel}>
+        <Text style={styles.sectionLabelText}>Data</Text>
+      </View>
+      <Pressable style={styles.row} onPress={handleExport} disabled={exporting}>
+        <Text style={[styles.rowLabel, exporting && styles.rowLabelMuted]}>
+          {exporting ? 'Exporting…' : 'Export your data'}
+        </Text>
+        {!exporting && <Text style={styles.chevron}>›</Text>}
       </Pressable>
     </View>
   );
@@ -121,6 +155,7 @@ const styles = StyleSheet.create({
     borderColor: colors.parchmentBorder,
   },
   rowLabel: { fontSize: 15, fontWeight: '400', color: colors.inkDark },
+  rowLabelMuted: { color: colors.inkFaint },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   rowValue: { fontSize: 14, color: colors.inkFaint },
   chevron: { fontSize: 18, color: colors.inkFaint, lineHeight: 22 },

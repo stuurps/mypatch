@@ -278,6 +278,18 @@ export async function getYearSpeciesList(db: SQLiteDatabase, patchId: string, ye
   return rows.map(r => r.species);
 }
 
+export function getAllPatches(db: SQLiteDatabase): Promise<Patch[]> {
+  return db.getAllAsync<Patch>('SELECT * FROM patches ORDER BY created_at ASC');
+}
+
+export function getAllSightings(db: SQLiteDatabase): Promise<Sighting[]> {
+  return db.getAllAsync<Sighting>('SELECT * FROM sightings ORDER BY seen_at ASC');
+}
+
+export function getAllJournalEntries(db: SQLiteDatabase): Promise<JournalEntry[]> {
+  return db.getAllAsync<JournalEntry>('SELECT * FROM journal ORDER BY created_at ASC');
+}
+
 export async function getMonthSpeciesCount(db: SQLiteDatabase, patchId: string, year: number, month: number): Promise<number> {
   const row = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(DISTINCT species) as count FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ? AND strftime('%m', seen_at) = ?`,

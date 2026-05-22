@@ -20,6 +20,7 @@ export function PatchTabBar({ state, navigation, insets }: BottomTabBarProps) {
 
   const visibleRoutes = state.routes.filter(r => NAV_ROUTES.includes(r.name));
   const [leftRoute, rightRoute] = visibleRoutes;
+  const onJournal = state.routes[state.index]?.name === 'journal';
 
   const handleLayout = (e: LayoutChangeEvent) => {
     onHeightChange?.(e.nativeEvent.layout.height);
@@ -57,11 +58,11 @@ export function PatchTabBar({ state, navigation, insets }: BottomTabBarProps) {
       {leftRoute && renderTab(leftRoute)}
 
       <Pressable
-        style={styles.fab}
-        onPress={() => router.navigate('/(tabs)/log')}
+        style={[styles.fab, onJournal && styles.fabOutlined]}
+        onPress={() => router.navigate(onJournal ? '/(tabs)/journal-compose' : '/(tabs)/log')}
         hitSlop={8}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Text style={[styles.fabText, onJournal && styles.fabTextOutlined]}>+</Text>
       </Pressable>
 
       {rightRoute && renderTab(rightRoute)}
@@ -103,10 +104,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  fabOutlined: {
+    backgroundColor: colors.parchment,
+    borderWidth: 2,
+    borderColor: colors.amber,
+    shadowOpacity: 0.08,
+  },
   fabText: {
     fontSize: 28,
     fontWeight: '300',
     color: colors.white,
     lineHeight: 32,
+  },
+  fabTextOutlined: {
+    color: colors.amber,
   },
 });

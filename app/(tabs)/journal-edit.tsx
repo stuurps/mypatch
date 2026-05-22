@@ -1,9 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import { colors, type as t, space } from '@/tokens';
@@ -13,6 +14,7 @@ import { formatDate } from '@/utils/format';
 export default function JournalEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const db = useSQLiteContext();
+  const navigation = useNavigation();
   const { top, bottom } = useSafeAreaInsets();
   const [body, setBody] = useState('');
   const [createdAt, setCreatedAt] = useState('');
@@ -30,13 +32,25 @@ export default function JournalEdit() {
     }, [id]),
   );
 
-  async function handleBack() {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    if (body.trim() && id) {
-      await updateJournalEntry(db, id, body.trim());
-    }
-    router.navigate('/(tabs)/journal');
+  // Intercepts all back gestures (swipe, hardware back, button) so edits
+  // are always saved regardless of how the user leaves the screen.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (savingRef.current) return;
+      savingRef.current = true;
+      e.preventDefault();
+      (async () => {
+        if (body.trim() && id) {
+          await updateJournalEntry(db, id, body.trim());
+        }
+        navigation.dispatch(e.data.action);
+      })();
+    });
+    return unsubscribe;
+  }, [navigation, body, id, db]);
+
+  function handleBack() {
+    router.back();
   }
 
   function handleDelete() {
@@ -67,32 +81,32 @@ export default function JournalEdit() {
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Edit entry</Text>
-        <View style={{ width: 36 }} />
+        <Pressable hitSlop={8} onPress={handleDelete}>
+          <Text style={styles.deleteBtn}>Delete</Text>
+        </Pressable>
       </View>
 
-      <Pressable style={styles.scrollPressable} onLongPress={handleDelete} delayLongPress={600}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.content, { paddingBottom: bottom + space.lg }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {createdAt ? (
-            <Text style={styles.dateLabel}>{formatDate(createdAt)}</Text>
-          ) : null}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: bottom + space.lg }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {createdAt ? (
+          <Text style={styles.dateLabel}>{formatDate(createdAt)}</Text>
+        ) : null}
 
-          <TextInput
-            style={styles.bodyInput}
-            value={body}
-            onChangeText={setBody}
-            multiline
-            textAlignVertical="top"
-            autoCorrect
-            autoCapitalize="sentences"
-            placeholderTextColor={colors.inkFaint}
-          />
-        </ScrollView>
-      </Pressable>
+        <TextInput
+          style={styles.bodyInput}
+          value={body}
+          onChangeText={setBody}
+          multiline
+          textAlignVertical="top"
+          autoCorrect
+          autoCapitalize="sentences"
+          placeholderTextColor={colors.inkFaint}
+        />
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -129,6 +143,14 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
+  deleteBtn: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.red,
+    width: 56,
+    textAlign: 'right',
+  },
+
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: space.lg,
@@ -150,5 +172,4 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
 
-  scrollPressable: { flex: 1 },
 });

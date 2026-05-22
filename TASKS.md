@@ -877,5 +877,89 @@ Replaces cold placeholder copy on three screens with warm, personal text. The ho
 
 ---
 
-*Tasks version: 2.2 — May 2026*
+## Task 27 — Journal editing audit
+
+The auto-save-on-back pattern is the differentiating UX of the journal. If it silently fails, users lose their writing. This task audits and fixes every path where a back navigation can bypass the save handler.
+
+**Known gaps from code review:**
+1. iOS swipe-back gesture bypasses `handleBack()` on both compose and edit screens — entry/edit is lost silently
+2. Android hardware back has the same issue on both screens
+3. Long-press delete on edit screen has no visual affordance and conflicts with scroll gestures
+
+**Design decisions:**
+- Fix (1) and (2) with a `beforeRemove` navigation listener (`useNavigation` from `@react-navigation/native`) on both screens. Listener calls `e.preventDefault()`, runs the save logic, then dispatches `e.data.action` to let the original navigation proceed. `savingRef` stays to guard against double-save.
+- Fix (3): add a `Delete` text pressable to the edit header right. Remove the `Pressable` wrapper around the `ScrollView`.
+- Empty body on edit screen back: preserve original entry — silent delete would be worse than preserving stale content.
+
+**`app/(tabs)/journal-compose.tsx`:**
+- [x] Import `useNavigation` from `@react-navigation/native`
+- [x] Add `useEffect` with `navigation.addListener('beforeRemove', handler)` — handler prevents default, saves if `body.trim()` non-empty, dispatches `e.data.action`
+- [x] Keep back button wired to existing `handleBack()` for the programmatic path
+
+**`app/(tabs)/journal-edit.tsx`:**
+- [x] Same `useNavigation` + `beforeRemove` listener pattern
+- [x] Add `Delete` text pressable to header right (`colors.red`, small) calling existing `handleDelete()`
+- [x] Remove `Pressable` wrapper around `ScrollView` (long-press delete removed from scroll area)
+
+**Done when:** Swipe-back on iOS saves a new compose entry. Swipe-back on iOS saves an edit. Hardware back on Android saves on both screens. Delete is reachable from the header without long-press. Empty compose body on back discards silently. Empty edit body on back preserves the original entry.
+
+---
+
+## Task 28 — Data export
+
+A full JSON backup of all user data, delivered via the native share sheet. The trust safety net before users commit months of data to the app.
+
+**Design decisions:**
+- All data exported regardless of active patch — this is a full personal backup
+- File name: `patch-export-YYYY-MM-DD.json`
+- Format: `{ exported_at, patches, sightings, journal }` — plain JSON arrays
+- Write to `FileSystem.cacheDirectory`, share via `Sharing.shareAsync` (both standard Expo SDK modules, no new dependencies)
+- No confirmation dialog — export is non-destructive
+- Row label shows `"Exporting…"` during the async operation, reverts after share sheet appears
+
+**`db/database.ts`:**
+- [x] Add `getAllSightings(db): Promise<Sighting[]>` — `SELECT * FROM sightings ORDER BY seen_at ASC`
+- [x] Add `getAllJournalEntries(db): Promise<JournalEntry[]>` — `SELECT * FROM journal ORDER BY created_at ASC`
+- [x] Add `getAllPatches(db): Promise<Patch[]>` — `SELECT * FROM patches ORDER BY created_at ASC`
+
+**`app/(tabs)/settings.tsx`:**
+- [x] Add `exporting: boolean` state (default false)
+- [x] `handleExport()` async function: fetch all data in parallel, build JSON object, write to `FileSystem.cacheDirectory + 'patch-export-[date].json'`, call `Sharing.shareAsync(path, { mimeType: 'application/json' })`
+- [x] Add "Export your data" row below "Send feedback", wired to `handleExport()`
+- [x] Row shows `"Exporting…"` label when `exporting` is true
+
+**Done when:** Tapping "Export your data" in Settings shows the native share sheet with a valid JSON file containing all patches, sightings, and journal entries. File saves to Files app. Loading state visible during export. No crash on empty database.
+
+---
+
+## Task 29 — Milestone callouts on poster
+
+A quiet, one-time acknowledgment in the poster hero when all-time species count crosses 10, 25, or 50. Not a badge, not a streak — the app noticing something worth noticing, said once, never again. Uses the existing `settings` table.
+
+**Design decisions:**
+- Thresholds: 10, 25, 50 all-time species
+- Only the highest un-dismissed threshold shows at any time
+- Copy — warm, not congratulatory:
+  - 10: `"10 species. A real patch list."`
+  - 25: `"25 species. You know this place."`
+  - 50: `"50 species. Your patch is alive."`
+- Rendered in the poster hero below the existing stats line — amber, 12px, weight 500, wrapped in a `Pressable`
+- Dismiss: tap the line → `setSetting(db, 'milestone_shown_[patchId]_[N]', '1')` → gone permanently
+- No animation, no auto-dismiss — it waits to be noticed
+- Settings key scoped per patch (`milestone_shown_[patchId]_[threshold]`) so second-patch users see independent milestones
+
+**`db/database.ts`:** No changes — uses existing `getSetting` / `setSetting`.
+
+**`app/(tabs)/poster.tsx`:**
+- [x] After data loads, compute `activeMilestone`: highest of [50, 25, 10] where `allSpecies.length >= threshold` and the settings key returns null
+- [x] Add `activeMilestone: number | null` state (default null)
+- [x] In `useEffect` data load: after setting `allSpecies`, check thresholds with `getSetting` calls, set `activeMilestone`
+- [x] Hero: render milestone line (amber `Pressable` text, 12px, weight 500) below `heroStats` when `activeMilestone !== null`
+- [x] `dismissMilestone()`: `setSetting(db, key, '1')` → `setActiveMilestone(null)`
+
+**Done when:** After logging enough species to hit a threshold, opening the poster shows the milestone line in the hero. Tapping it hides it permanently. Re-opening the poster: not shown again. Next threshold shows independently when reached. Never shown for an already-dismissed threshold.
+
+---
+
+*Tasks version: 2.3 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*
