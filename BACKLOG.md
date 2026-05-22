@@ -71,9 +71,15 @@ These have a strong idea and user signal but need a task spec before building.
 | ID | Feature | Size | Direction |
 |---|---|---|---|
 | B4 | Session summary — Task 22 ✅ | M | After logging one or more sightings: a quiet closing moment before leaving the log screen. Not a report card — a punctuation mark. "Today at Fowlmere: Robin · Kingfisher · 2 Coots." Warm and brief. Clears on next visit. |
-| B5 | Milestone callouts on poster | S | On reaching 10, 25, 50 species at a patch: a quiet one-time callout in the hero — not a badge, not a streak. Something worth marking, said once. |
-| B6 | Sighting history browse by month | M | "Show me what I logged in October." Month picker → sightings for that period. Temporal memory — the thing that makes a year feel like a story, not a list. |
-| B11 | Settings screen | M | Profile settings (edit display name, edit patch name) + a user guide covering how to log, edit, and delete sightings + a "Contact us" section for feature requests and feedback. The guide should live inside the app — not a link out — so it feels native and personal. Contact route is email or a simple form, nothing social. |
+| B5 | Milestone callouts on poster | S | On reaching 10, 25, 50 species at a patch: a quiet one-time callout in the hero — not a badge, not a streak. Something worth marking, said once. Uses the settings table (already exists) to ensure it fires once only. |
+| B6 | Sighting history browse by month | M | "Show me what I logged in October." Month picker → sightings for that period. Temporal memory — the thing that makes a year feel like a story, not a list. This is the core of the "over time" USP; without it, users have no way to navigate their history except scrolling. |
+| B11 | Settings screen — Task 24 ✅ | M | Profile settings (edit display name, edit patch name) + a user guide covering how to log, edit, and delete sightings + a "Contact us" section for feature requests and feedback. The guide should live inside the app — not a link out — so it feels native and personal. Contact route is email or a simple form, nothing social. |
+| B12 | Empty state quality | S | What a brand new user sees before their first log. The current state ("Nothing logged yet") is functional but cold. After a warm four-screen onboarding the landing should feel inviting, not blank. Also covers poster and journal empty states. |
+| B13 | First sighting onboarding prompt | S | A quiet nudge immediately after onboarding — "Your patch is set. What's out there today?" Visible on home until first log, then gone permanently. One-time, non-repeating, not a modal. Bridges the onboarding-to-first-log gap. Store dismissed state in settings table. |
+| B14 | Quick re-log | M | Regular patch visitors see the same birds daily. "Log again" shortcut from species detail or recent sightings list — reduces the daily logging habit to two taps. Entry point: button on species detail page + long-press on a sighting row. |
+| B15 | Journal editing audit | S | Verify the auto-save-on-back flow works reliably end to end. Confirm edit, delete, and compose all handle edge cases (empty body, accidental back, etc.). Fix any gaps. |
+| B16 | Data export | S | Users who log for months shouldn't risk losing everything on reinstall or new phone. Add "Export your data" to Settings — produces a JSON file (sightings + journal entries) shared via the native share sheet. Users can save to Files or email to themselves. iCloud sync is the proper v2 solution; this buys trust in the meantime. |
+| B17 | Species list — gaps + free-text fallback | S | Current list (87 species) is missing Tawny Owl, Herring Gull, Common Gull, Marsh Tit, Lesser Redpoll — all regular UK patch birds. Add them to the array. Also add a free-text fallback so users can log any species not in the list ("Other — type a name") without being blocked. A birder who tries to log "Tawny Owl" and can't find it will lose trust immediately. |
 
 ---
 
@@ -88,10 +94,6 @@ These need either more data to be meaningful, a stronger format idea, or post-v1
 | B8 | Annual recap — "A year at [patch]" | L | End-of-year summary screen — the full story of 12 months in one view. Beautiful but only payable once a full cycle has passed. Design target: the thing someone screenshots and shares on 31 Dec. |
 | B9 | iOS widget — species count | L | Ambient count on the home screen — today's species, this year's total. Requires native iOS target. Build post-stabilisation. |
 | B10 | Journal × sightings integration | XL | Birds tagged within a journal entry instead of as separate sighting records. The deeper version of "one session = one entry." Major rethink of the data model and both UIs. Not v1. |
-| B12 | Empty state quality | S | What a brand new user sees before their first log. If 100 people download the app and 40 never log a bird, this is the problem. Inviting, not blank. Needs character. |
-| B13 | First sighting onboarding prompt | S | A quiet nudge immediately after onboarding — "Your patch is set. Log your first bird?" Lifts activation without pressure. One-time, non-repeating. |
-| B14 | Quick re-log | M | Regular patch visitors see the same birds daily. "Log again" shortcut from species detail or sighting history — reduces the daily logging habit to one tap. |
-| B15 | Journal editing | S | Can users edit or delete a journal entry? If not, this is a gap that will frustrate quickly. Audit what's missing from the MVP (Task 19) and fill it. |
 
 ---
 
@@ -109,5 +111,5 @@ These need either more data to be meaningful, a stronger format idea, or post-v1
 
 ---
 
-*Backlog version: 1.1 — May 2026*
+*Backlog version: 1.2 — May 2026*
 *Read alongside: WORKFLOW.md, TASKS.md, patch-project-context.md*

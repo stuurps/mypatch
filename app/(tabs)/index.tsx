@@ -11,6 +11,7 @@ import type { TimeOfDay } from '@/skies';
 import { TimeOfDayIcon } from '@/components/TimeOfDayIcon';
 import { ConditionsIcon } from '@/components/ConditionsIcon';
 import { BinocularsIcon } from '@/components/BinocularsIcon';
+import { GearIcon } from '@/components/GearIcon';
 import type { Conditions } from '@/components/ConditionsIcon';
 
 import { colors, type as t, space, radius } from '@/tokens';
@@ -88,7 +89,7 @@ function renderSightingRow(s: Sighting) {
 export default function PatchHome() {
   const { state, dispatch } = usePatch();
   const db = useSQLiteContext();
-  const { bottom } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
@@ -201,6 +202,13 @@ export default function PatchHome() {
           <Text style={styles.greetingLine}>{greetingText(state.userName)}</Text>
           <Text style={styles.greetingPhrase}>Your {state.patch?.name ?? 'patch'}</Text>
         </Pressable>
+        <Pressable
+          style={[styles.gearBtn, { top: top + space.sm }]}
+          onPress={() => router.push('/(tabs)/settings')}
+          hitSlop={8}
+        >
+          <GearIcon size={22} color="rgba(255,255,255,0.6)" />
+        </Pressable>
       </View>
 
       {/* Stats row */}
@@ -283,7 +291,7 @@ export default function PatchHome() {
       )}
     </>
     );
-  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length]);
+  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, watchSpecies, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length, top]);
 
 
   return (
@@ -327,6 +335,14 @@ const styles = StyleSheet.create({
     right: space.lg,
     alignItems: 'center',
     gap: 6,
+  },
+  gearBtn: {
+    position: 'absolute',
+    right: space.md,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   greetingLine: {
     fontSize: 28,

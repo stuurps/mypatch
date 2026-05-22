@@ -2,7 +2,7 @@ import {
   View, Text, Pressable, TextInput, StyleSheet,
   useWindowDimensions, KeyboardAvoidingView,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useRef, useEffect } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -18,8 +18,10 @@ export default function OnboardingYourName() {
   const { top, bottom } = useSafeAreaInsets();
   const db = useSQLiteContext();
   const { dispatch } = usePatch();
+  const params = useLocalSearchParams<{ editing?: string; currentName?: string }>();
+  const isEditing = params.editing === 'true';
 
-  const [name, setName] = useState('');
+  const [name, setName] = useState(params.currentName ?? '');
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -33,7 +35,11 @@ export default function OnboardingYourName() {
     const trimmed = name.trim();
     await setSetting(db, 'user_name', trimmed);
     dispatch({ type: 'SET_USER_NAME', payload: trimmed });
-    router.push('/onboarding/name');
+    if (isEditing) {
+      router.back();
+    } else {
+      router.push('/onboarding/name');
+    }
   }
 
   return (
@@ -46,7 +52,7 @@ export default function OnboardingYourName() {
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
           <View style={styles.barCenter}>
-            <StepDots current={2} />
+            {!isEditing && <StepDots current={2} />}
           </View>
           <View style={{ width: 36 }} />
         </View>
@@ -54,7 +60,7 @@ export default function OnboardingYourName() {
         <View style={{ flex: 1 }} />
 
         <View style={[styles.content, { paddingBottom: bottom + space.xl }]}>
-          <Text style={styles.eyebrow}>Let's get started</Text>
+          <Text style={styles.eyebrow}>{isEditing ? 'Your profile' : 'Let\'s get started'}</Text>
           <Text style={styles.headline}>What should we call you?</Text>
           <TextInput
             ref={inputRef}
@@ -73,7 +79,7 @@ export default function OnboardingYourName() {
             disabled={!canContinue}
             onPress={handleContinue}
           >
-            <Text style={styles.ctaText}>Continue</Text>
+            <Text style={styles.ctaText}>{isEditing ? 'Save' : 'Continue'}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

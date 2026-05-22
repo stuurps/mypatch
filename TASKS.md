@@ -783,5 +783,43 @@ A quiet count on the home screen showing how many species you've seen this month
 
 ---
 
+## Task 24 — Settings screen
+
+A home for profile edits, patch edits, a user guide, and a contact route. Everything that needs to live somewhere but doesn't belong in the main flow.
+
+**Design decisions:**
+- Entry point: gear icon absolute top-right of the home hero — white, 0.6 opacity, 40×40 tap target. No tab bar entry.
+- Screen: forest green header (same as log/edit), back chevron, "Settings" title. Parchment background, section-grouped rows.
+- Sections: Profile (edit name) · Your patch (edit patch) · Help (guide) · Feedback (mailto)
+- Edit name reuses `your-name.tsx` with `editing=true` param — same pattern as name.tsx and size.tsx
+- User guide lives in-app as a separate screen — no webview, no link out
+- Contact: `Linking.openURL('mailto:hello@patch.app')` — placeholder address
+
+**`app/onboarding/your-name.tsx`:**
+- [x] Accept optional `editing=true` route param
+- [x] In edit mode: headline "Update your name", step dots hidden, CTA "Save"
+- [x] On save in edit mode: `setSetting` + `dispatch SET_USER_NAME` + `router.back()`
+
+**`app/(tabs)/settings.tsx`:** (new file)
+- [x] Forest green header, back chevron, "Settings" title
+- [x] "Your name" row — shows current `state.userName`, taps to `/onboarding/your-name?editing=true`
+- [x] "Patch name & size" row — taps into existing edit patch flow (same as long-press)
+- [x] "How to use Patch" row — navigates to `/(tabs)/settings-guide`
+- [x] "Send feedback" row — `Linking.openURL('mailto:hello@patch.app')`
+
+**`app/(tabs)/settings-guide.tsx`:** (new file)
+- [x] Forest green header, back chevron, "How to use Patch" title
+- [x] Scrollable parchment body with four short sections: logging a sighting, editing/deleting a sighting, writing a journal entry, renaming your patch
+
+**`app/(tabs)/index.tsx`:**
+- [x] Gear icon absolute top-right of hero — white, 0.6 opacity, 40×40 tap target, navigates to `/(tabs)/settings`
+
+**`app/(tabs)/_layout.tsx`:**
+- [x] Register `settings` and `settings-guide` screens with `href: null`
+
+**Done when:** Gear icon on home opens Settings. Name is editable and persists across restarts. Patch edit works from Settings and via existing long-press. Guide is readable. Feedback row opens mail compose. No regressions to onboarding or existing edit flows.
+
+---
+
 *Tasks version: 2.0 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*
