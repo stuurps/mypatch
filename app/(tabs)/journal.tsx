@@ -12,6 +12,13 @@ import { formatDate } from '@/utils/format';
 
 type Section = { title: string; data: JournalEntry[] };
 
+function journalPreview(body: string): string {
+  const lines = body.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length === 0) return '';
+  const start = lines[0].trim().length < 25 && lines.length > 1 ? 1 : 0;
+  return lines.slice(start, start + 2).join(' ');
+}
+
 function groupByDate(entries: JournalEntry[]): Section[] {
   const today = new Date();
   const yesterday = new Date(today);
@@ -128,7 +135,7 @@ export default function JournalScreen() {
             onPress={() => router.push(`/(tabs)/journal-edit?id=${item.id}`)}
           >
             <Text style={styles.entryPreview} numberOfLines={2}>
-              {item.body.split('\n').find(l => l.trim()) ?? ''}
+              {journalPreview(item.body)}
             </Text>
           </Pressable>
         )}

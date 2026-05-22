@@ -988,5 +988,22 @@ Two fixes to the sightings tab. Tapping a home sighting row now goes to species 
 
 ---
 
-*Tasks version: 2.4 — May 2026*
+## Task 31 — Journal entry preview quality ✅
+
+Fixes the journal list preview so it shows meaningful content rather than a throwaway opener line.
+
+**Design decisions:**
+- Skip a short opener (< 25 chars) if a longer line follows — catches "Lovely morning." or "Cold day." without aggressively dropping intentional short-only entries.
+- Feed up to 2 non-empty lines joined with a space so `numberOfLines={2}` actually has content to fill both display lines.
+- 25-character threshold: roughly "Cold morning walk." — shorter is likely an opener, not substance.
+
+**`app/(tabs)/journal.tsx`:**
+- [x] Add `journalPreview(body: string): string` helper: filter empty lines, skip first if < 25 chars and a next line exists, return up to 2 lines joined with space
+- [x] Replace inline `item.body.split('\n').find(l => l.trim()) ?? ''` with `journalPreview(item.body)`
+
+**Done when:** Short opener entries show the next line in the preview. Substantial first-line entries are unchanged. Second lines fill the preview area. Ellipsis truncation still works.
+
+---
+
+*Tasks version: 2.5 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*
