@@ -4,6 +4,7 @@ description: Close a completed task — verify checklist, write release note, up
 argument-hint: [task-number]
 allowed-tools: [Read, Write, Edit, Bash]
 disable-model-invocation: true
+model: haiku
 ---
 
 Read TASKS.md. If a task number was passed (e.g. `/ship 19`), use that. Otherwise find the most recently in-progress task.
