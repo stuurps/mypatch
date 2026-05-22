@@ -62,7 +62,7 @@ function renderSightingRow(s: Sighting) {
     <Pressable
       key={s.id}
       style={styles.sightingRow}
-      onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
+      onPress={() => router.push(`/(tabs)/species?species=${encodeURIComponent(s.species)}`)}
     >
       <View style={styles.sightingMain}>
         <Text style={styles.sightingSpecies}>{s.species}</Text>

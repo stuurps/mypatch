@@ -961,5 +961,32 @@ A quiet, one-time acknowledgment in the poster hero when all-time species count 
 
 ---
 
-*Tasks version: 2.3 — May 2026*
+## Task 30 — Sightings navigation fix + FAB visual bug ✅
+
+Two fixes to the sightings tab. Tapping a home sighting row now goes to species detail (not edit), making the primary tap destination match user intent. Edit access moves to species detail, where the full per-species history gives better context for choosing which record to edit. The circular + FAB's rectangular press artifact is fixed by separating shadow from clip boundary.
+
+**Design decisions:**
+- Tap home sighting row → species detail. Edit is a secondary deliberate act — it belongs one level deeper, not on the first tap.
+- Edit access via species detail sighting rows — tap any record in the per-species list to edit it. `useFocusEffect` already reloads on return from edit.
+- Long-press on home rows left unbound — reserved for B14 (quick re-log).
+- FAB fix: wrapper `View` carries shadow/elevation; inner `Pressable` gets `overflow: 'hidden'` (clips iOS press highlight to circle) and `android_ripple={{ borderless: false }}` (contained circular ripple on Android).
+
+**`app/(tabs)/index.tsx`:**
+- [x] `renderSightingRow` `onPress`: navigate to `/(tabs)/species?species=encodeURIComponent(s.species)` instead of edit
+
+**`app/(tabs)/species.tsx`:**
+- [x] Replace `View` wrapper on each sighting row with `Pressable`
+- [x] `onPress`: `router.push('/(tabs)/edit?id=' + s.id)`
+
+**`components/PatchTabBar.tsx`:**
+- [x] Wrap FAB `Pressable` in `View` (`styles.fabWrap`) bearing shadow/elevation
+- [x] Move shadow properties from `fab` → `fabWrap`; move `shadowOpacity` override to `fabWrapOutlined`
+- [x] Add `overflow: 'hidden'` to `fab` style
+- [x] Add `android_ripple={{ borderless: false, color: 'rgba(0,0,0,0.12)' }}` to Pressable
+
+**Done when:** Tapping a home sighting row opens species detail. Tapping a sighting row on species detail opens edit. The + FAB shows no rectangular artifact on press. No regressions.
+
+---
+
+*Tasks version: 2.4 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*

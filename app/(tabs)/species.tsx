@@ -70,7 +70,10 @@ export default function SpeciesDetail() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         renderItem={({ item: s }) => (
-          <View style={styles.sightingRow}>
+          <Pressable
+            style={styles.sightingRow}
+            onPress={() => router.push(`/(tabs)/edit?id=${s.id}`)}
+          >
             <View style={styles.sightingMain}>
               <Text style={styles.sightingDate}>{formatDate(s.seen_at)}</Text>
               <View style={styles.sightingMetaRow}>
@@ -87,7 +90,7 @@ export default function SpeciesDetail() {
             {s.count > 1 && (
               <Text style={styles.sightingCount}>{s.count}</Text>
             )}
-          </View>
+          </Pressable>
         )}
       />
     </View>

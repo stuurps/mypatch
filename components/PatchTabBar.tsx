@@ -57,13 +57,16 @@ export function PatchTabBar({ state, navigation, insets }: BottomTabBarProps) {
     >
       {leftRoute && renderTab(leftRoute)}
 
-      <Pressable
-        style={[styles.fab, onJournal && styles.fabOutlined]}
-        onPress={() => router.navigate(onJournal ? '/(tabs)/journal-compose' : '/(tabs)/log')}
-        hitSlop={8}
-      >
-        <Text style={[styles.fabText, onJournal && styles.fabTextOutlined]}>+</Text>
-      </Pressable>
+      <View style={[styles.fabWrap, onJournal && styles.fabWrapOutlined]}>
+        <Pressable
+          style={[styles.fab, onJournal && styles.fabOutlined]}
+          onPress={() => router.navigate(onJournal ? '/(tabs)/journal-compose' : '/(tabs)/log')}
+          hitSlop={8}
+          android_ripple={{ borderless: false, color: 'rgba(0,0,0,0.12)' }}
+        >
+          <Text style={[styles.fabText, onJournal && styles.fabTextOutlined]}>+</Text>
+        </Pressable>
+      </View>
 
       {rightRoute && renderTab(rightRoute)}
     </View>
@@ -91,6 +94,19 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: colors.amber,
   },
+  fabWrap: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  fabWrapOutlined: {
+    shadowOpacity: 0.08,
+  },
   fab: {
     width: FAB_SIZE,
     height: FAB_SIZE,
@@ -98,17 +114,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.amber,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    overflow: 'hidden',
   },
   fabOutlined: {
     backgroundColor: colors.parchment,
     borderWidth: 2,
     borderColor: colors.amber,
-    shadowOpacity: 0.08,
   },
   fabText: {
     fontSize: 28,
