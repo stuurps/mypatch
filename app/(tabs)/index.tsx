@@ -268,8 +268,12 @@ export default function PatchHome() {
       {/* Empty state */}
       {recentSightings.length === 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>Nothing logged yet</Text>
-          <Text style={styles.emptyHint}>Tap + to record your first sighting</Text>
+          <Text style={styles.emptyText}>
+            {state.userName ? `Over to you, ${state.userName}.` : 'Over to you.'}
+          </Text>
+          <Text style={styles.emptyHint}>
+            {`Tap + to log your first bird at ${state.patch?.name ?? 'your patch'}.`}
+          </Text>
         </View>
       )}
 

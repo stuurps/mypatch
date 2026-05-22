@@ -72,6 +72,9 @@ export default function EditSighting() {
     ? SPECIES.filter(s => s.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
     : [];
 
+  const showFreeText = query.length >= 2 && !selectedSpecies &&
+    !SPECIES.some(s => s.toLowerCase() === query.toLowerCase().trim());
+
   function getHint(species: string): { text: string; accent: boolean } {
     if (PHENOLOGY.has(species)) return { text: 'expected soon', accent: true };
     if (!loggedSpeciesSet.has(species)) return { text: 'new for your patch', accent: true };
@@ -144,14 +147,14 @@ export default function EditSighting() {
             autoCorrect={false}
             autoCapitalize="words"
           />
-          {results.length > 0 && (
+          {(results.length > 0 || showFreeText) && (
             <View style={styles.dropdown}>
               {results.map((species, i) => {
                 const hint = getHint(species);
                 return (
                   <Pressable
                     key={species}
-                    style={[styles.dropdownItem, i < results.length - 1 && styles.dropdownItemBorder]}
+                    style={[styles.dropdownItem, (i < results.length - 1 || showFreeText) && styles.dropdownItemBorder]}
                     onPress={() => selectSpecies(species)}
                   >
                     <Text style={styles.dropdownSpecies}>{species}</Text>
@@ -161,6 +164,15 @@ export default function EditSighting() {
                   </Pressable>
                 );
               })}
+              {showFreeText && (
+                <Pressable
+                  style={styles.dropdownItem}
+                  onPress={() => selectSpecies(query.trim())}
+                >
+                  <Text style={styles.dropdownSpecies}>{query.trim()}</Text>
+                  <Text style={styles.dropdownHint}>not in list</Text>
+                </Pressable>
+              )}
             </View>
           )}
         </View>

@@ -116,8 +116,8 @@ export default function YourPatch() {
         ListHeaderComponent={header}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>Nothing logged yet</Text>
-            <Text style={styles.emptyHint}>Head out and log your first sighting</Text>
+            <Text style={styles.emptyText}>No species yet.</Text>
+            <Text style={styles.emptyHint}>Every bird you log appears here.</Text>
           </View>
         }
         contentContainerStyle={{ paddingBottom: bottom + space.xl }}

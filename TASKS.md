@@ -821,5 +821,61 @@ A home for profile edits, patch edits, a user guide, and a contact route. Everyt
 
 ---
 
-*Tasks version: 2.0 — May 2026*
+## Task 25 — Species list completeness + free-text fallback ✅
+
+Expanded the bundled species list from 87 to 194 regularly occurring UK birds and added a free-text fallback so users can log any species not in the list.
+
+**Design decisions:**
+- 194 species covering common UK breeders, winter visitors, and regular passage migrants — no genuine rarities, no coastal-only seabirds (auks, shearwaters), no mega-vagrants
+- Taxonomic order preserved throughout; comments group by family
+- Free-text fallback: a final row `Use '[query]'` appears at the bottom of the autocomplete dropdown whenever the typed query has no exact match in SPECIES. Shows after up to 6 list results, or alone when there are zero results.
+- Free-text hint: `"not in list"` in `inkMid` — neutral, not amber. No special treatment vs a list species once logged; all hint logic (on your patch / new for your patch / expected soon) works identically from `loggedSpeciesSet` and `PHENOLOGY`
+- No schema changes — species stored as TEXT already; free-text values are stored as-is
+
+**`data/species.ts`:**
+- [x] Replace 87-species array with 194-species array covering full UK patch birding range
+- [x] Notable additions: Tawny Owl, Cuckoo, Goldcrest, Rook, Carrion Crow, Pheasant, all common gulls, Avocet, Golden Plover, Knot, Grasshopper Warbler, Cetti's Warbler, Brambling, Common Crossbill, Waxwing, Dipper, and many more
+
+**`app/(tabs)/log.tsx`:**
+- [x] Add `showFreeText` — true when `query.length >= 2 && !selectedSpecies && no exact SPECIES match`
+- [x] Dropdown gate changed from `results.length > 0` to `results.length > 0 || showFreeText`
+- [x] Last list result gets a bottom border when `showFreeText` is true
+- [x] Free-text row rendered below list results: species name = `query.trim()`, hint = `"not in list"`
+
+**`app/(tabs)/edit.tsx`:**
+- [x] Same `showFreeText` logic and dropdown changes as log.tsx
+
+**Done when:** Typing "Tawny Owl", "Cuckoo", "Rook", "Goldcrest" all return results. Typing an unlisted species (e.g. "Goshawk" — wait, that's now in the list — try "Yellow Warbler") shows `Use 'Yellow Warbler'` row. Selecting it logs correctly. Editing a free-text sighting pre-fills without issue.
+
+---
+
+## Task 26 — Empty states + first sighting prompt ✅
+
+Replaces cold placeholder copy on three screens with warm, personal text. The home empty state doubles as the B13 first-sighting activation prompt — no separate element needed.
+
+**Design decisions:**
+- Home line 1 uses `state.userName` if set: `"Over to you, [name]."` — falls back to `"Over to you."` for users who skipped name entry
+- Home line 2 uses `state.patch?.name`: `"Tap + to log your first bird at [patchName]."` — puts the place in the activation moment
+- B13 (first sighting prompt) is fully absorbed here — the empty state IS the activation prompt; it disappears naturally after first log with no dismissed-state storage needed
+- Journal already had the warmest copy — kept line 1, added a second hint line for consistency
+- Poster frames the empty screen as a beginning, not a gap — "Every bird you log appears here" rather than "nothing logged yet"
+- No new components, no DB changes, no structural changes — text and one style addition only
+
+**`app/(tabs)/index.tsx`:**
+- [x] Line 1: `state.userName ? "Over to you, [name]." : "Over to you."`
+- [x] Line 2: `"Tap + to log your first bird at [patchName]."`
+
+**`app/(tabs)/poster.tsx`:**
+- [x] Line 1: `"No species yet."`
+- [x] Line 2: `"Every bird you log appears here."`
+
+**`app/(tabs)/journal.tsx`:**
+- [x] Line 2 added: `"Tap + to write about your visit."`
+- [x] `emptyHint` style added, `gap: space.xs` added to `emptyState`
+
+**Done when:** New user completing onboarding sees `"Over to you, [name]."` on home. Poster and journal empty states read as invitations. All three revert to normal content after first log/entry. No regressions.
+
+---
+
+*Tasks version: 2.2 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*

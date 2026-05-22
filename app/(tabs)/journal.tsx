@@ -142,6 +142,7 @@ export default function JournalScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>Your first entry is waiting.</Text>
+            <Text style={styles.emptyHint}>Tap + to write about your visit.</Text>
           </View>
         }
       />
@@ -224,6 +225,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.parchmentBorder,
   },
   entryPreview: { ...t.body, color: colors.inkMid },
-  emptyState: { paddingVertical: space.xl, paddingHorizontal: space.lg, alignItems: 'center' },
+  emptyState: { paddingVertical: space.xl, paddingHorizontal: space.lg, alignItems: 'center', gap: space.xs },
   emptyText: { ...t.body, color: colors.inkMid },
+  emptyHint: { ...t.meta, color: colors.inkFaint },
 });

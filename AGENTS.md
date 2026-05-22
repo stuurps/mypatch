@@ -1,3 +1,5 @@
+@patch-project-context.md
+
 # Product direction
 
 **North star:** quiet · personal · everyday · over time
