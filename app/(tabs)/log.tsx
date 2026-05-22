@@ -363,7 +363,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     paddingVertical: space.md,
     alignItems: 'center',
-    opacity: 0.7,
   },
 
   sessionTally: {
