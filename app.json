@@ -17,6 +17,8 @@
       "bundleIdentifier": "com.anonymous.patch"
     },
     "android": {
+      "package": "app.mypatch",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
