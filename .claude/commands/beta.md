@@ -1,29 +1,20 @@
 ---
-description: Push current changes to the beta app via EAS Update
+description: Commit and push to main — GitHub Actions handles the EAS update to beta
 model: claude-haiku-4-5-20251001
 allowed-tools: Bash
 ---
 
-Push the current state of the app to beta testers via `eas update`.
+Commit any pending changes and push to main. GitHub Actions will automatically run TypeScript checks and push an OTA update to beta testers.
 
-Follow these steps:
+Steps:
 
 1. Run `git status` to check for uncommitted changes.
 
 2. If there are uncommitted changes:
    - Run `git diff --stat` to summarise what changed
-   - Commit all modified/untracked app files (exclude node_modules, .expo, dist) with a short descriptive message reflecting what changed
-   - Use `git add` on specific files — never `git add -A` or `git add .`
+   - Stage relevant app files (never `git add -A` or `git add .` — add specific files)
+   - Commit with a short descriptive message in plain English (no "fix:" prefixes)
 
-3. Run `git log --oneline -3` to get the most recent commit messages.
+3. Run `git push origin main`.
 
-4. Derive a short, human-readable update message from the recent commits — one sentence, plain English, no "fix:" prefixes. For example: "Added month stats to home screen" or "Journal auto-save improvements".
-
-5. Run:
-   ```
-   eas update --branch preview --message "<your derived message>" --non-interactive
-   ```
-
-6. Report: what was committed (if anything), the update message used, and confirm the EAS update succeeded.
-
-If `eas` is not found, tell the user to run `npm install -g eas-cli` first.
+4. Report: what was committed (if anything), and confirm the push succeeded. Remind the user that GitHub Actions will now run the TypeScript check and push the OTA update to beta — they can watch progress at https://github.com/stuurps/mypatch/actions
