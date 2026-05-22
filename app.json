@@ -29,11 +29,24 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "updates": {
+      "url": "https://u.expo.dev/8464a9dd-b7e6-4e5b-b41e-c8fcf308088e"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "plugins": [
       "expo-router",
       "expo-sqlite",
       "@react-native-community/datetimepicker",
       "expo-sharing"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8464a9dd-b7e6-4e5b-b41e-c8fcf308088e"
+      }
+    },
+    "owner": "sturps"
   }
 }
