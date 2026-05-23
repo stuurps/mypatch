@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet,
-  KeyboardAvoidingView, Platform, Keyboard,
+  KeyboardAvoidingView, Platform, Keyboard, Animated,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
@@ -31,7 +31,7 @@ function formatDateCompact(d: Date): string {
 }
 
 export default function LogSighting() {
-  const { state, dispatch } = usePatch();
+  const { state } = usePatch();
   const db = useSQLiteContext();
   const { top, bottom } = useSafeAreaInsets();
 
@@ -48,6 +48,12 @@ export default function LogSighting() {
   const [sessionSpecies, setSessionSpecies] = useState<{ species: string; count: number }[]>([]);
   const [showSummary, setShowSummary] = useState(false);
 
+  const speciesInputRef = useRef<TextInput>(null);
+  const titleOpacity = useRef(new Animated.Value(1)).current;
+  const [titleText, setTitleText] = useState('Log a sighting');
+  const [titleIsNew, setTitleIsNew] = useState(false);
+  const confTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       const now = new Date();
@@ -62,6 +68,10 @@ export default function LogSighting() {
       setSessionSpecies([]);
       setShowSummary(false);
       setIsFocused(false);
+      if (confTimer.current) clearTimeout(confTimer.current);
+      setTitleText('Log a sighting');
+      setTitleIsNew(false);
+      titleOpacity.setValue(1);
       if (!state.patch) return;
       db.getAllAsync<{ species: string }>(
         'SELECT DISTINCT species FROM sightings WHERE patch_id = ?',
@@ -69,6 +79,23 @@ export default function LogSighting() {
       ).then(rows => setLoggedSpeciesSet(new Set(rows.map(r => r.species))));
     }, [state.patch?.id]),
   );
+
+  function showConf(species: string, isNew: boolean) {
+    if (confTimer.current) clearTimeout(confTimer.current);
+    Animated.timing(titleOpacity, { toValue: 0, duration: 100, useNativeDriver: true }).start(() => {
+      setTitleText(isNew ? `✓ ${species} — first here` : `✓ ${species}`);
+      setTitleIsNew(isNew);
+      Animated.timing(titleOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start(() => {
+        confTimer.current = setTimeout(() => {
+          Animated.timing(titleOpacity, { toValue: 0, duration: 100, useNativeDriver: true }).start(() => {
+            setTitleText('Log a sighting');
+            setTitleIsNew(false);
+            Animated.timing(titleOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+          });
+        }, 1600);
+      });
+    });
+  }
 
   const sessionSet = new Set(sessionSpecies.map(s => s.species));
 
@@ -104,7 +131,6 @@ export default function LogSighting() {
     if (!selectedSpecies || !state.patch) return;
 
     const isNew = !(await hasSpeciesBeenLogged(db, state.patch.id, selectedSpecies));
-    const toastType = isNew ? 'new' : PHENOLOGY.has(selectedSpecies) ? 'year' : 'logged';
 
     const now = new Date().toISOString();
     const sighting: Sighting = {
@@ -120,7 +146,6 @@ export default function LogSighting() {
     };
 
     await insertSighting(db, sighting);
-    dispatch({ type: 'SET_TOAST', payload: { species: selectedSpecies, type: toastType } });
 
     const addedSpecies = selectedSpecies;
     const addedCount = count;
@@ -134,6 +159,7 @@ export default function LogSighting() {
     });
     setLoggedSpeciesSet(prev => new Set([...prev, addedSpecies]));
 
+    showConf(addedSpecies, isNew);
     Keyboard.dismiss();
     const now2 = new Date();
     setQuery('');
@@ -143,6 +169,7 @@ export default function LogSighting() {
     setSeenAt(now2);
     setShowDatePicker(false);
     setTimeOfDay(timeOfDayFromHour(now2.getHours()));
+    setTimeout(() => speciesInputRef.current?.focus(), 200);
   }
 
   const canAdd = !!selectedSpecies;
@@ -157,7 +184,9 @@ export default function LogSighting() {
         <Pressable style={styles.backBtn} onPress={() => router.navigate('/(tabs)')}>
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Log a sighting</Text>
+        <Animated.Text style={[styles.headerTitle, titleIsNew && styles.headerTitleConf, { opacity: titleOpacity }]}>
+          {titleText}
+        </Animated.Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -171,6 +200,7 @@ export default function LogSighting() {
         <View style={styles.fieldBlock}>
           <Text style={styles.fieldLabel}>Species</Text>
           <TextInput
+            ref={speciesInputRef}
             style={styles.input}
             value={query}
             onChangeText={text => {
@@ -329,7 +359,10 @@ export default function LogSighting() {
           </Text>
         </Pressable>
 
-        {sessionSpecies.length > 0 && (
+      </ScrollView>
+
+      {sessionSpecies.length > 0 && (
+        <View style={[styles.stickyFooter, { paddingBottom: Math.max(bottom, space.md) }]}>
           <Pressable
             style={styles.ctaFinished}
             onPress={() => {
@@ -342,8 +375,8 @@ export default function LogSighting() {
           >
             <Text style={styles.ctaText}>Finished</Text>
           </Pressable>
-        )}
-      </ScrollView>
+        </View>
+      )}
 
       {showSummary && state.patch && (
         <SessionSummaryOverlay
@@ -396,6 +429,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     paddingVertical: space.md,
     alignItems: 'center',
+  },
+
+  stickyFooter: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm,
+    backgroundColor: colors.parchment,
+    borderTopWidth: 1,
+    borderTopColor: colors.parchmentBorder,
+  },
+
+  headerTitleConf: {
+    color: colors.amber,
   },
 
   sessionTally: {
