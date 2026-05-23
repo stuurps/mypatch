@@ -30,4 +30,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Push OTA update to beta
-        run: eas update --branch preview --message "${{ github.event.head_commit.message }}" --non-interactive
+        env:
+          EAS_MESSAGE: ${{ github.event.head_commit.message }}
+        run: eas update --branch preview --message "$EAS_MESSAGE" --non-interactive
