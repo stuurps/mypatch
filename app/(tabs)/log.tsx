@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as ExpoCrypto from 'expo-crypto';
+import * as Haptics from 'expo-haptics';
 import { SPECIES, rankSpecies } from '@/data/species';
 import { getWatchSpecies, currentSeason, PHENOLOGY_HINTS } from '@/data/phenology';
 import { insertSighting, hasSpeciesBeenLogged } from '@/db/database';
@@ -159,6 +160,11 @@ export default function LogSighting() {
     });
     setLoggedSpeciesSet(prev => new Set([...prev, addedSpecies]));
 
+    if (isNew) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     showConf(addedSpecies, isNew);
     Keyboard.dismiss();
     const now2 = new Date();

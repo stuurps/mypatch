@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as ExpoCrypto from 'expo-crypto';
+import * as Haptics from 'expo-haptics';
 import { colors, type as t, space } from '@/tokens';
 import { usePatch } from '@/context/PatchContext';
 import { insertJournalEntry } from '@/db/database';
@@ -45,6 +46,7 @@ export default function JournalCompose() {
             body: body.trim(),
             created_at: new Date().toISOString(),
           });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
         navigation.dispatch(e.data.action);
       })();

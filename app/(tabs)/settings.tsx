@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { Sighting } from '@/db/database';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,11 +12,31 @@ import { getAllPatches, getAllSightings, getAllJournalEntries } from '@/db/datab
 
 const HEADER_BG = '#2d3b2a';
 
+function csvEscape(v: string | number | null | undefined): string {
+  const s = String(v ?? '').replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+function buildCSV(sightings: Sighting[], patchMap: Map<string, string>): string {
+  const header = 'date,species,count,time_of_day,conditions,notes,patch';
+  const rows = sightings.map(s => [
+    csvEscape(s.seen_at.slice(0, 10)),
+    csvEscape(s.species),
+    csvEscape(s.count),
+    csvEscape(s.time_of_day),
+    csvEscape(s.conditions),
+    csvEscape(s.notes),
+    csvEscape(patchMap.get(s.patch_id)),
+  ].join(','));
+  return [header, ...rows].join('\n');
+}
+
 export default function SettingsScreen() {
   const { top } = useSafeAreaInsets();
   const { state, dispatch } = usePatch();
   const db = useSQLiteContext();
   const [exporting, setExporting] = useState(false);
+  const [exportingCSV, setExportingCSV] = useState(false);
 
   async function handleExport() {
     if (exporting) return;
@@ -33,6 +54,22 @@ export default function SettingsScreen() {
       await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: 'Export your Patch data' });
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleExportCSV() {
+    if (exportingCSV) return;
+    setExportingCSV(true);
+    try {
+      const [patches, sightings] = await Promise.all([getAllPatches(db), getAllSightings(db)]);
+      const patchMap = new Map(patches.map(p => [p.id, p.name]));
+      const csv = buildCSV(sightings, patchMap);
+      const date = new Date().toISOString().slice(0, 10);
+      const path = `${FileSystem.cacheDirectory}patch-export-${date}.csv`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export your Patch data' });
+    } finally {
+      setExportingCSV(false);
     }
   }
 
@@ -101,9 +138,15 @@ export default function SettingsScreen() {
       </View>
       <Pressable style={styles.row} onPress={handleExport} disabled={exporting}>
         <Text style={[styles.rowLabel, exporting && styles.rowLabelMuted]}>
-          {exporting ? 'Exporting…' : 'Export your data'}
+          {exporting ? 'Exporting…' : 'Export as JSON'}
         </Text>
         {!exporting && <Text style={styles.chevron}>›</Text>}
+      </Pressable>
+      <Pressable style={[styles.row, styles.rowBorderTop]} onPress={handleExportCSV} disabled={exportingCSV}>
+        <Text style={[styles.rowLabel, exportingCSV && styles.rowLabelMuted]}>
+          {exportingCSV ? 'Exporting…' : 'Export as CSV'}
+        </Text>
+        {!exportingCSV && <Text style={styles.chevron}>›</Text>}
       </Pressable>
     </View>
   );
@@ -154,6 +197,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.parchmentBorder,
   },
+  rowBorderTop: { borderTopWidth: 0 },
   rowLabel: { fontSize: 15, fontWeight: '400', color: colors.inkDark },
   rowLabelMuted: { color: colors.inkFaint },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
