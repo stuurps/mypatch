@@ -125,7 +125,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '300',
     color: colors.white,
-    lineHeight: 32,
   },
   fabTextOutlined: {
     color: colors.amber,
