@@ -279,11 +279,6 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
   },
   tileThisYear: {
     backgroundColor: 'rgba(200,125,58,0.10)',
@@ -303,7 +298,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.inkDark,
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: 18,
+    includeFontPadding: false,
   },
   tileCount: {
     position: 'absolute',
