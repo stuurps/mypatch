@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, SectionList, Pressable } from 'react-native';
+import { View, Text, StyleSheet, SectionList, Pressable, TextInput } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -42,6 +43,15 @@ function groupByDate(entries: JournalEntry[]): Section[] {
   return Array.from(map.entries()).map(([title, data]) => ({ title, data }));
 }
 
+function SearchIcon({ size = 18, color = '#000' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="11" cy="11" r="8" stroke={color} strokeWidth="2" fill="none" />
+      <Path d="M21 21l-4.35-4.35" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 const HERO_HEIGHT = 260;
 
 function greetingText(userName: string | null): string {
@@ -65,7 +75,10 @@ export default function JournalScreen() {
   const [yearCount, setYearCount] = useState(0);
   const [allTimeCount, setAllTimeCount] = useState(0);
   const [monthCount, setMonthCount] = useState(0);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,10 +95,20 @@ export default function JournalScreen() {
         setYearCount(yc);
         setAllTimeCount(atc);
         setMonthCount(mc);
+        setEntries(ents);
         setSections(groupByDate(ents));
       });
+      return () => {
+        setSearchQuery('');
+        setSearchActive(false);
+      };
     }, [state.patch?.id]),
   );
+
+  const q = searchQuery.trim().toLowerCase();
+  const displaySections: Section[] = q
+    ? [{ title: '', data: entries.filter(e => e.body.toLowerCase().includes(q)) }]
+    : sections;
 
   return (
     <View style={styles.root}>
@@ -112,23 +135,50 @@ export default function JournalScreen() {
       </View>
 
       <View style={styles.listHeader}>
-        <Text style={styles.listHeaderLabel}>Your entries</Text>
+        {searchActive ? (
+          <>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search entries…"
+              placeholderTextColor={colors.inkFaint}
+              autoFocus
+              returnKeyType="search"
+            />
+            <Pressable
+              onPress={() => { setSearchQuery(''); setSearchActive(false); }}
+              hitSlop={8}
+            >
+              <Text style={styles.searchClear}>×</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={styles.listHeaderLabel}>Your entries</Text>
+            <Pressable onPress={() => setSearchActive(true)} hitSlop={8}>
+              <SearchIcon size={18} color={colors.inkFaint} />
+            </Pressable>
+          </>
+        )}
       </View>
 
       <SectionList
-        sections={sections}
+        sections={displaySections}
         keyExtractor={item => item.id}
         style={styles.list}
         contentContainerStyle={{ paddingBottom: bottom + space.lg }}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
-        renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionLabel, title === 'Today' && styles.sectionLabelToday]}>
-              {title}
-            </Text>
-          </View>
-        )}
+        renderSectionHeader={({ section: { title } }) =>
+          title ? (
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionLabel, title === 'Today' && styles.sectionLabelToday]}>
+                {title}
+              </Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => (
           <Pressable
             style={styles.entryRow}
@@ -140,10 +190,16 @@ export default function JournalScreen() {
           </Pressable>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Your first entry is waiting.</Text>
-            <Text style={styles.emptyHint}>Tap + to write about your visit.</Text>
-          </View>
+          searchActive && q ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyHint}>No entries match "{searchQuery.trim()}".</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Your first entry is waiting.</Text>
+              <Text style={styles.emptyHint}>Tap + to write about your visit.</Text>
+            </View>
+          )
         }
       />
     </View>
@@ -198,12 +254,27 @@ const styles = StyleSheet.create({
   statLabel: { ...t.label },
 
   listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.parchmentBorder,
   },
   listHeaderLabel: { ...t.label },
+  searchInput: {
+    flex: 1,
+    ...t.body,
+    color: colors.inkDark,
+    paddingVertical: 0,
+  },
+  searchClear: {
+    fontSize: 22,
+    color: colors.inkMid,
+    lineHeight: 26,
+    paddingLeft: space.sm,
+  },
 
   list: { flex: 1 },
   sectionHeader: {

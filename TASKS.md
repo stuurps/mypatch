@@ -1107,5 +1107,34 @@ Redesigned the log screen around the primary use case: one bird, done in seconds
 
 ---
 
-*Tasks version: 2.8 — May 2026*
+## Task 35 — Journal keyword search (B19) ✅
+
+Search bar on the journal tab that filters entries by keyword. Works on prose body only. Collapsed by default — no permanent chrome.
+
+**Design decisions:**
+- Search affordance: magnifying glass icon at the right of the "Your entries" header. Tap → header row transforms into a TextInput + × to clear/collapse.
+- Filtering: client-side, case-insensitive substring match on `body`. No new DB query — entries already loaded by `getJournalEntries`.
+- Results display: flat list (date section headers suppressed during search) — one unnamed section, identical entry row style.
+- Zero results: `"No entries match '[query]'."` — quiet, personalised.
+- Reset on blur: `searchQuery` and `searchActive` cleared in `useFocusEffect` cleanup.
+
+**`app/(tabs)/journal.tsx`:**
+- [x] Add `TextInput` to RN imports; add `Svg, Circle, Path` from react-native-svg
+- [x] Add local `SearchIcon` component (magnifying glass SVG)
+- [x] Add `entries: JournalEntry[]` state; set from `getJournalEntries` result alongside `sections`
+- [x] Add `searchQuery: string` and `searchActive: boolean` states
+- [x] `useFocusEffect` cleanup resets both search states on screen blur
+- [x] Compute `displaySections`: when `q` non-empty → flat filtered section; else → grouped `sections`
+- [x] `listHeader` row: shows label + SearchIcon when inactive; shows TextInput + × when active
+- [x] `SectionList` uses `displaySections`; section header renders `null` when `title === ''`
+- [x] `ListEmptyComponent`: search-aware — shows no-match message vs default empty state
+- [x] `listHeader` style updated to `flexDirection: 'row'`; `searchInput` and `searchClear` styles added
+
+**No DB changes. No new component files.**
+
+**Done when:** Journal tab shows a search icon in the header. Tapping it opens an inline text input. Typing filters entries in real time (flat list, no date headers). Clearing or tapping × restores the full grouped list. Zero-match query shows a quiet personalised message. Navigating away resets search state.
+
+---
+
+*Tasks version: 2.9 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*
