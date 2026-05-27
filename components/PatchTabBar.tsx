@@ -114,7 +114,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.amber,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   fabOutlined: {
     backgroundColor: colors.parchment,

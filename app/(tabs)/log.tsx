@@ -26,6 +26,8 @@ const PHENOLOGY = new Set(getWatchSpecies(currentSeason()).map(w => w.species));
 
 let lastConditions: Conditions | null = null;
 
+const TIME_LABELS: Record<TimeOfDay, string> = { dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
+
 function formatDateCompact(d: Date): string {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${d.getDate()} ${months[d.getMonth()]}`;
@@ -48,9 +50,13 @@ export default function LogSighting() {
   const [loggedSpeciesSet, setLoggedSpeciesSet] = useState<Set<string>>(new Set());
   const [sessionSpecies, setSessionSpecies] = useState<{ species: string; count: number }[]>([]);
   const [showSummary, setShowSummary] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
   const [sessionMode, setSessionMode] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [confirmedSpecies, setConfirmedSpecies] = useState('');
+  const [confirmedIsNew, setConfirmedIsNew] = useState(false);
+  const [confirmedCount, setConfirmedCount] = useState(1);
+  const [confirmedDate, setConfirmedDate] = useState(new Date());
+  const [confirmedTimeOfDay, setConfirmedTimeOfDay] = useState<TimeOfDay>('day');
 
   const speciesInputRef = useRef<TextInput>(null);
   const titleOpacity = useRef(new Animated.Value(1)).current;
@@ -72,7 +78,6 @@ export default function LogSighting() {
       setConditions(lastConditions);
       setSessionSpecies([]);
       setShowSummary(false);
-      setShowDetails(false);
       setSessionMode(false);
       setConfirming(false);
       setIsFocused(false);
@@ -143,14 +148,6 @@ export default function LogSighting() {
     Keyboard.dismiss();
   }
 
-  function detailsSummaryText(): string {
-    const timeLabels: Record<TimeOfDay, string> = { dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
-    const parts: string[] = [timeLabels[timeOfDay]];
-    if (conditions) parts.push(conditions.charAt(0).toUpperCase() + conditions.slice(1));
-    if (notes.trim()) parts.push('+ note');
-    return parts.join(' · ');
-  }
-
   async function handleAdd() {
     if (!selectedSpecies || !state.patch) return;
 
@@ -172,6 +169,8 @@ export default function LogSighting() {
 
     const addedSpecies = selectedSpecies;
     const addedCount = count;
+    const addedDate = new Date(seenAt);
+    const addedTimeOfDay = timeOfDay;
 
     setSessionSpecies(prev => {
       const existing = prev.find(s => s.species === addedSpecies);
@@ -196,9 +195,13 @@ export default function LogSighting() {
     setSeenAt(now2);
     setShowDatePicker(false);
     setTimeOfDay(timeOfDayFromHour(now2.getHours()));
-    setShowDetails(false);
 
     if (!sessionMode) {
+      setConfirmedSpecies(addedSpecies);
+      setConfirmedIsNew(isNew);
+      setConfirmedCount(addedCount);
+      setConfirmedDate(addedDate);
+      setConfirmedTimeOfDay(addedTimeOfDay);
       setConfirming(true);
       autoNavTimer.current = setTimeout(() => {
         setConfirming(false);
@@ -249,156 +252,179 @@ export default function LogSighting() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Session tally — session mode only */}
         {sessionMode && sessionSpecies.length > 0 && (
           <Text style={styles.sessionTally}>
             {sessionSpecies.map(s => s.count > 1 ? `${s.count} ${s.species}` : s.species).join(' · ')}
           </Text>
         )}
 
-        <View style={styles.speciesSection}>
-          <TextInput
-            ref={speciesInputRef}
-            style={styles.speciesInput}
-            value={query}
-            onChangeText={text => {
-              setQuery(text);
-              if (selectedSpecies) setSelectedSpecies(null);
-            }}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder="Species…"
-            placeholderTextColor={colors.inkFaint}
-            autoCorrect={false}
-            autoCapitalize="words"
-          />
-          {(zeroQuerySuggestions.length > 0 || results.length > 0 || showFreeText) && (
-            <View style={styles.dropdown}>
-              {zeroQuerySuggestions.map((species, i) => {
-                const hint = getHint(species);
-                const isLast = i === zeroQuerySuggestions.length - 1 && !results.length && !showFreeText;
-                return (
-                  <Pressable
-                    key={species}
-                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
-                    onPress={() => selectSpecies(species)}
-                  >
-                    <Text style={styles.dropdownSpecies}>{species}</Text>
-                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>{hint.text}</Text>
-                  </Pressable>
-                );
-              })}
-              {results.map((species, i) => {
-                const hint = getHint(species);
-                const isLast = i === results.length - 1 && !showFreeText;
-                return (
-                  <Pressable
-                    key={species}
-                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
-                    onPress={() => selectSpecies(species)}
-                  >
-                    <Text style={styles.dropdownSpecies}>{species}</Text>
-                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>{hint.text}</Text>
-                  </Pressable>
-                );
-              })}
-              {showFreeText && (
-                <Pressable style={styles.dropdownItem} onPress={() => selectSpecies(query.trim())}>
-                  <Text style={styles.dropdownSpecies}>{query.trim()}</Text>
-                  <Text style={styles.dropdownHint}>not in list</Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-        </View>
-
-        {selectedSpecies && (
-          <View style={styles.countRow}>
-            <Pressable
-              style={[styles.stepBtn, count <= 1 && styles.stepBtnDim]}
-              onPress={() => setCount(c => Math.max(1, c - 1))}
-            >
-              <Text style={styles.stepBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.stepCount}>{count}</Text>
-            <Pressable style={styles.stepBtn} onPress={() => setCount(c => c + 1)}>
-              <Text style={styles.stepBtnText}>+</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {selectedSpecies && (
-          <Pressable style={styles.detailsToggle} onPress={() => setShowDetails(v => !v)}>
-            <Text style={styles.detailsSummary}>{detailsSummaryText()}</Text>
-            <Text style={styles.detailsChevron}>{showDetails ? 'Hide' : 'Details ›'}</Text>
-          </Pressable>
-        )}
-
-        {selectedSpecies && showDetails && (
-          <View style={styles.detailsPanel}>
-            <View style={[styles.detailRow, styles.detailRowH]}>
-              <Text style={styles.detailLabel}>Date</Text>
-              {Platform.OS === 'ios' ? (
-                <DateTimePicker
-                  value={seenAt}
-                  mode="date"
-                  display="compact"
-                  maximumDate={new Date()}
-                  themeVariant="light"
-                  onChange={(_, date) => { if (date) setSeenAt(date); }}
-                />
-              ) : (
-                <Pressable style={styles.datePill} onPress={() => setShowDatePicker(true)}>
-                  <Text style={styles.datePillText}>{formatDateCompact(seenAt)}</Text>
-                </Pressable>
-              )}
-            </View>
-            {Platform.OS === 'android' && showDatePicker && (
-              <DateTimePicker
-                value={seenAt}
-                mode="date"
-                display="default"
-                maximumDate={new Date()}
-                onChange={(_, date) => { setShowDatePicker(false); if (date) setSeenAt(date); }}
-              />
-            )}
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Time of day</Text>
-              <TimeOfDayPicker value={timeOfDay} onChange={setTimeOfDay} />
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Conditions</Text>
-              <ConditionsPicker
-                value={conditions}
-                onChange={c => { lastConditions = c; setConditions(c); }}
-              />
-            </View>
-            <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.detailLabel}>Notes</Text>
-              <TextInput
-                style={styles.notesInput}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="e.g. riverside hide, singing male…"
-                placeholderTextColor={colors.inkFaint}
-                multiline
-                numberOfLines={2}
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
-        )}
-
+        {/* Confirmation card — shown during 1.8s post-add window */}
         {confirming ? (
-          <Pressable style={styles.logAnotherBtn} onPress={handleLogAnother}>
-            <Text style={styles.logAnotherText}>Log another</Text>
-          </Pressable>
-        ) : selectedSpecies ? (
-          <Pressable style={styles.cta} onPress={handleAdd}>
-            <Text style={styles.ctaText}>
-              {sessionMode ? 'Add another' : `Add to ${state.patch?.name ?? 'patch'}`}
-            </Text>
-          </Pressable>
-        ) : null}
+          <>
+            <View style={styles.confirmCard}>
+              <View style={styles.confirmSpeciesRow}>
+                <Text style={styles.confirmSpecies}>{confirmedSpecies}</Text>
+                {confirmedCount > 1 && (
+                  <Text style={styles.confirmCountLabel}>× {confirmedCount}</Text>
+                )}
+              </View>
+              <Text style={styles.confirmMeta}>
+                {formatDateCompact(confirmedDate)} · {TIME_LABELS[confirmedTimeOfDay]}
+              </Text>
+              {confirmedIsNew && state.patch && (
+                <Text style={styles.confirmNew}>New for {state.patch.name}</Text>
+              )}
+            </View>
+            <Pressable style={styles.logAnotherBtn} onPress={handleLogAnother}>
+              <Text style={styles.logAnotherText}>Log another</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            {/* Species input */}
+            <View style={styles.speciesSection}>
+              <TextInput
+                ref={speciesInputRef}
+                style={styles.speciesInput}
+                value={query}
+                onChangeText={text => {
+                  setQuery(text);
+                  if (selectedSpecies) setSelectedSpecies(null);
+                }}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder="Species…"
+                placeholderTextColor={colors.inkFaint}
+                autoCorrect={false}
+                autoCapitalize="words"
+              />
+              {(zeroQuerySuggestions.length > 0 || results.length > 0 || showFreeText) && (
+                <View style={styles.dropdown}>
+                  {zeroQuerySuggestions.map((species, i) => {
+                    const hint = getHint(species);
+                    const isLast = i === zeroQuerySuggestions.length - 1 && !results.length && !showFreeText;
+                    return (
+                      <Pressable
+                        key={species}
+                        style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
+                        onPress={() => selectSpecies(species)}
+                      >
+                        <Text style={styles.dropdownSpecies}>{species}</Text>
+                        <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>{hint.text}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {results.map((species, i) => {
+                    const hint = getHint(species);
+                    const isLast = i === results.length - 1 && !showFreeText;
+                    return (
+                      <Pressable
+                        key={species}
+                        style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
+                        onPress={() => selectSpecies(species)}
+                      >
+                        <Text style={styles.dropdownSpecies}>{species}</Text>
+                        <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>{hint.text}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {showFreeText && (
+                    <Pressable style={styles.dropdownItem} onPress={() => selectSpecies(query.trim())}>
+                      <Text style={styles.dropdownSpecies}>{query.trim()}</Text>
+                      <Text style={styles.dropdownHint}>not in list</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Count stepper — only after species selected */}
+            {selectedSpecies && (
+              <View style={styles.countRow}>
+                <Pressable
+                  style={[styles.stepBtn, count <= 1 && styles.stepBtnDim]}
+                  onPress={() => setCount(c => Math.max(1, c - 1))}
+                >
+                  <Text style={styles.stepBtnText}>−</Text>
+                </Pressable>
+                <Text style={styles.stepCount}>{count}</Text>
+                <Pressable style={styles.stepBtn} onPress={() => setCount(c => c + 1)}>
+                  <Text style={styles.stepBtnText}>+</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Details card — always visible once species selected */}
+            {selectedSpecies && (
+              <View style={styles.detailsCard}>
+                {/* Date */}
+                <View style={[styles.detailRow, styles.detailRowH]}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={seenAt}
+                      mode="date"
+                      display="compact"
+                      maximumDate={new Date()}
+                      themeVariant="light"
+                      onChange={(_, date) => { if (date) setSeenAt(date); }}
+                    />
+                  ) : (
+                    <Pressable style={styles.datePill} onPress={() => setShowDatePicker(true)}>
+                      <Text style={styles.datePillText}>{formatDateCompact(seenAt)}</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {Platform.OS === 'android' && showDatePicker && (
+                  <DateTimePicker
+                    value={seenAt}
+                    mode="date"
+                    display="default"
+                    maximumDate={new Date()}
+                    onChange={(_, date) => { setShowDatePicker(false); if (date) setSeenAt(date); }}
+                  />
+                )}
+                {/* Time of day */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Time of day</Text>
+                  <TimeOfDayPicker value={timeOfDay} onChange={setTimeOfDay} />
+                </View>
+                {/* Conditions */}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Conditions</Text>
+                  <ConditionsPicker
+                    value={conditions}
+                    onChange={c => { lastConditions = c; setConditions(c); }}
+                  />
+                </View>
+                {/* Notes — last row, no bottom border */}
+                <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
+                  <Text style={styles.detailLabel}>Notes</Text>
+                  <TextInput
+                    style={styles.notesInput}
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="e.g. riverside hide, singing male…"
+                    placeholderTextColor={colors.inkFaint}
+                    multiline
+                    numberOfLines={2}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* CTA */}
+            {selectedSpecies && (
+              <Pressable style={styles.cta} onPress={handleAdd}>
+                <Text style={styles.ctaText}>
+                  {sessionMode ? 'Add another' : `Add to ${state.patch?.name ?? 'patch'}`}
+                </Text>
+              </Pressable>
+            )}
+          </>
+        )}
       </ScrollView>
 
       {showSummary && state.patch && (
@@ -473,6 +499,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // Confirmation card
+  confirmCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.parchmentBorder,
+    borderRadius: radius.card,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.lg,
+    gap: space.xs,
+  },
+  confirmSpeciesRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: space.sm,
+  },
+  confirmSpecies: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: colors.inkDark,
+  },
+  confirmCountLabel: {
+    fontSize: 15,
+    color: colors.inkMid,
+  },
+  confirmMeta: {
+    fontSize: 13,
+    color: colors.inkFaint,
+  },
+  confirmNew: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.amber,
+    marginTop: space.xs,
+  },
+
+  logAnotherBtn: {
+    alignItems: 'center',
+    paddingVertical: space.md,
+  },
+  logAnotherText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.amber,
+  },
+
+  // Species input
   speciesSection: {
     gap: space.xs,
   },
@@ -510,6 +582,7 @@ const styles = StyleSheet.create({
   dropdownHint: { ...t.meta, color: colors.inkMid },
   dropdownHintAccent: { color: colors.amber },
 
+  // Count stepper
   countRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -542,22 +615,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  detailsToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: space.xs,
-  },
-  detailsSummary: {
-    ...t.meta,
-    color: colors.inkFaint,
-  },
-  detailsChevron: {
-    ...t.meta,
-    color: colors.inkMid,
-  },
-
-  detailsPanel: {
+  // Details card
+  detailsCard: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.parchmentBorder,
@@ -580,7 +639,6 @@ const styles = StyleSheet.create({
   detailLabel: {
     ...t.label,
   },
-
   datePill: {
     backgroundColor: colors.parchment,
     borderWidth: 1,
@@ -593,7 +651,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.inkDark,
   },
-
   notesInput: {
     fontSize: 14,
     color: colors.inkDark,
@@ -601,6 +658,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
 
+  // CTA
   cta: {
     backgroundColor: colors.amber,
     borderRadius: radius.button,
@@ -611,15 +669,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
-  },
-
-  logAnotherBtn: {
-    alignItems: 'center',
-    paddingVertical: space.md,
-  },
-  logAnotherText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.amber,
   },
 });
