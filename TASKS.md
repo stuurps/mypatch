@@ -1076,5 +1076,36 @@ Redesigned the log screen around the primary use case: one bird, done in seconds
 
 ---
 
-*Tasks version: 2.7 — May 2026*
+## Task 34 — Browse sightings by month (B6)
+
+**Product principle:** *over time* — turns accumulated sightings into explorable history. The navigation layer the app has been missing.
+
+**Design decisions:**
+- New screen `app/(tabs)/history.tsx` (not a tab) — accessed via "Browse ›" in the "Recent sightings" section header on home. Only surfaced once earlier sightings exist.
+- Month navigator: `‹ | Month YYYY | ›`. Right arrow disabled at current month. No lower bound — empty months show a quiet message.
+- Sightings grouped by calendar day via SectionList. Day header = "Tuesday 27 May". Each row identical in style to the home screen. Tap → species detail.
+- Stats line beneath month label: "N species · N records". Derived from loaded sightings — no extra query.
+
+**`db/database.ts`:**
+- [ ] `getSightingsByMonth(db, patchId, year, month)` — SELECT * WHERE patch_id + strftime year/month, ORDER BY seen_at DESC
+
+**`app/(tabs)/history.tsx` (new):**
+- [ ] Forest green header with back button + "History" title
+- [ ] Month navigator row: ‹ | Month YYYY | ›; right arrow disabled when at current month
+- [ ] Stats line: "N species · N records"; hidden when 0 records
+- [ ] SectionList grouped by calendar day; section header = "Weekday D Month"
+- [ ] Sighting row: species · TOD icon · conditions icon · notes · count; tap → species detail
+- [ ] Empty state: "Nothing logged in [Month YYYY]."
+
+**`app/(tabs)/_layout.tsx`:**
+- [ ] Add `<Tabs.Screen name="history" options={{ href: null }} />`
+
+**`app/(tabs)/index.tsx`:**
+- [ ] "Recent sightings" section header → row with label left + "Browse ›" amber link right → `/(tabs)/history`
+
+**Done when:** "Browse ›" on home opens history on the current month. ‹/› arrows change months. Sightings grouped by day. Tap → species detail. Empty months show a quiet message. Right arrow disabled at current month.
+
+---
+
+*Tasks version: 2.8 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*

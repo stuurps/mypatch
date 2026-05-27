@@ -15,6 +15,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="journal" />
       <Tabs.Screen name="journal-compose" options={{ href: null }} />
       <Tabs.Screen name="journal-edit" options={{ href: null }} />
+      <Tabs.Screen name="history" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="settings-guide" options={{ href: null }} />
     </Tabs>

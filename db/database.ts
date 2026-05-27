@@ -306,6 +306,13 @@ export async function getMonthSpeciesList(db: SQLiteDatabase, patchId: string, y
   return rows.map(r => r.species);
 }
 
+export function getSightingsByMonth(db: SQLiteDatabase, patchId: string, year: number, month: number) {
+  return db.getAllAsync<Sighting>(
+    `SELECT * FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ? AND strftime('%m', seen_at) = ? ORDER BY seen_at DESC, created_at DESC`,
+    patchId, String(year), String(month).padStart(2, '0'),
+  );
+}
+
 export async function getLastVisit(db: SQLiteDatabase, patchId: string): Promise<{ date: string; speciesCount: number } | null> {
   const row = await db.getFirstAsync<{ visit_date: string; species_count: number }>(
     `SELECT date(seen_at, 'localtime') as visit_date, COUNT(DISTINCT species) as species_count

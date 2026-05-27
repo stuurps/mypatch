@@ -74,12 +74,12 @@ Ordered by priority. Build the top item next.
 | ID | Feature | Task | Size | Why now |
 |---|---|---|---|---|
 | B25 | Home sighting row → species detail + FAB visual fix | Task 30 ✅ | XS | Tap home sighting row → species detail (not edit). Edit access moves to species detail sighting rows. FAB rectangular press artifact fixed by splitting shadow (wrapper View) from press clip (Pressable with overflow:hidden + android_ripple). |
-| B24 | Journal entry preview quality | — | XS | The first-line preview in the journal entry list often shows a throwaway opener. Fix: skip lines under 25 characters, show 2 lines instead of 1. No new screen, no DB change — pure list-row UX. |
-| B21 | CSV export | — | XS | Adds CSV as a second format alongside the existing JSON export in Settings. Columns: date, species, count, time of day, conditions, notes, patch name. Piggybacks entirely on the Task 28 `getAllSightings` infrastructure — no new DB work. Serves crossover users who also submit to eBird or want a spreadsheet. |
+| B24 | Journal entry preview quality | Task 31 ✅ | XS | Skip lines under 25 characters, show 2 lines instead of 1. Pure list-row UX — no new screen, no DB change. |
 | B2 | User name in onboarding | Task 21 ✅ | S | "Personal above all" — opens warm personalisation throughout app |
 | B3 | Month stats on home | Task 23 ✅ | S | "X species this month" — small count, immediate value, quick win |
-| B26 | Stat drill-down | — | XS | Tapping a home screen stat box (This month / This year / All time) navigates to the filtered species list for that period. The numbers are already meaningful — they should be destinations. No new infrastructure; hooks into the existing species list with a period filter. |
-| B27 | Last visit anchor | — | XS | A quiet line on the home screen showing when you last logged here and how many species. "Last visit: Tuesday · 6 species." Memory framing, not a countdown. One query (most recent sighting date + count for that day). Works from day 1. |
+| B21 | CSV export | shipped ✅ | XS | Shipped in commit a938c94 alongside haptic feedback — "Export as CSV" row in Settings, all sightings as date/species/count/time_of_day/conditions/notes/patch. |
+| B26 | Stat drill-down | Task 33 ✅ | XS | Tapping a home screen stat box (This month / This year / All time) navigates to the filtered species list for that period. The numbers are already meaningful — they should be destinations. No new infrastructure; hooks into the existing species list with a period filter. |
+| B27 | Last visit anchor | Task 33 ✅ | XS | A quiet line on the home screen showing when you last logged here and how many species. "Last visit: Tuesday · 6 species." Memory framing, not a countdown. One query (most recent sighting date + count for that day). Works from day 1. |
 
 ---
 
@@ -89,7 +89,7 @@ Ordered by priority. Top items are closest to being pulled into Now.
 
 | ID | Feature | Size | Direction |
 |---|---|---|---|
-| B6 | Sighting history browse by month | M | "Show me what I logged in October." Month picker → sightings for that period. Temporal memory — the thing that makes a year feel like a story, not a list. The core of the "over time" USP; without it, users have no way to navigate their history except scrolling. Named across all three research waves. |
+| B6 | Sighting history browse by month | Task 34 ✅ | M | Month navigator on History screen with left/right arrows. Sightings grouped by calendar day. Right arrow disabled at current month. Tap sighting → species detail. |
 | B22 | Species records by month + residency context | M | On the species detail page, add a compact monthly breakdown — 12 months with your record count for each (dash if zero). Alongside this, show a residency label: "summer visitor / winter visitor / resident / passage migrant" derived from a new `residency` field in `data/species.ts`. The label gives context for the monthly pattern — your Swallow records clustering in Apr–Sep make sense immediately when you can see "summer visitor". For new users, even one May sighting gets biological framing. Requires adding `residency` to all 194 species in `data/species.ts` (small data work) and a new month-by-month DB query on species detail. The beginning of personal phenology — your own data against the bird's biology. |
 | B19 | Journal keyword search | S | Search bar on the journal tab that filters entries by keyword. Works on prose body only. Entry point: search input above the entry list, collapsed until tapped. Zero config — works on day 1 even with a single entry. Named independently by two Wave 3 personas with no shared context (serious lister and nature journaller). |
 | B20 | Today's sightings in journal compose | S | When opening the journal compose screen on a day where sightings have been logged, show a quiet read-only reference strip at the top: "You logged today: Robin · Kingfisher · 2 Coots." Not editable, not part of the saved entry — just context while writing. Prevents the "retyping my list into the journal" friction. No data model change; no tagging. Distinct from B10. |

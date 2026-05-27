@@ -291,8 +291,11 @@ export default function PatchHome() {
 
       {/* Earlier sightings label */}
       {earlierSightings.length > 0 && (
-        <View style={styles.sectionHeader}>
+        <View style={[styles.sectionHeader, styles.sectionHeaderRow]}>
           <Text style={styles.sectionLabel}>Recent sightings</Text>
+          <Pressable onPress={() => router.push('/(tabs)/history')} hitSlop={8}>
+            <Text style={styles.browseLink}>Browse ›</Text>
+          </Pressable>
         </View>
       )}
     </>
@@ -425,8 +428,19 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.sm,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
   sectionLabel: {
     ...t.label,
+    marginBottom: space.md,
+  },
+  browseLink: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.amber,
     marginBottom: space.md,
   },
 
