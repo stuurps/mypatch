@@ -297,3 +297,25 @@ export async function getMonthSpeciesCount(db: SQLiteDatabase, patchId: string, 
   );
   return row?.count ?? 0;
 }
+
+export async function getMonthSpeciesList(db: SQLiteDatabase, patchId: string, year: number, month: number): Promise<string[]> {
+  const rows = await db.getAllAsync<{ species: string }>(
+    `SELECT DISTINCT species FROM sightings WHERE patch_id = ? AND strftime('%Y', seen_at) = ? AND strftime('%m', seen_at) = ? ORDER BY species`,
+    patchId, String(year), String(month).padStart(2, '0'),
+  );
+  return rows.map(r => r.species);
+}
+
+export async function getLastVisit(db: SQLiteDatabase, patchId: string): Promise<{ date: string; speciesCount: number } | null> {
+  const row = await db.getFirstAsync<{ visit_date: string; species_count: number }>(
+    `SELECT date(seen_at, 'localtime') as visit_date, COUNT(DISTINCT species) as species_count
+     FROM sightings
+     WHERE patch_id = ? AND date(seen_at, 'localtime') < date('now', 'localtime')
+     GROUP BY visit_date
+     ORDER BY visit_date DESC
+     LIMIT 1`,
+    patchId,
+  );
+  if (!row) return null;
+  return { date: row.visit_date, speciesCount: row.species_count };
+}

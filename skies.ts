@@ -5,9 +5,9 @@ export const SKY_SUNRISE = [
 ];
 
 export const SKY_DAY = [
-  '#0c1624', '#102030', '#162c40', '#1e3a54',
-  '#264a6a', '#305c82', '#3a6e9a', '#4480b0',
-  '#5092c4', '#5ca4d8', '#68b4e8', '#74c0f0',
+  '#1e5090', '#235898', '#2862a4', '#2e6cb0',
+  '#3576bc', '#3e82c8', '#4890d4', '#549ede',
+  '#62ace6', '#70b8ec', '#80c0f0', '#92c8f4',
 ];
 
 export const SKY_SUNSET = [

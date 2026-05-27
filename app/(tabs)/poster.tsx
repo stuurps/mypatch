@@ -4,12 +4,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SKY_SUNRISE } from '@/skies';
 import { SkyHero } from '@/components/SkyHero';
 import { usePatch } from '@/context/PatchContext';
 import {
-  getPatchSpeciesWithCounts, getPatchSpecies,
+  getPatchSpeciesWithCounts, getPatchSpecies, getMonthSpeciesList,
   getAllTimeSightingsCount, getFirstSightingDate,
   getSetting, setSetting,
 } from '@/db/database';
@@ -17,6 +17,7 @@ import { colors, type as t, space, radius } from '@/tokens';
 import { formatSince } from '@/utils/format';
 
 const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_MONTH = new Date().getMonth() + 1;
 const TILE_GAP = space.sm;
 const TILE_COLS = 3;
 const HERO_HEIGHT = 220;
@@ -35,14 +36,22 @@ export default function YourPatch() {
   const { top, bottom } = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
-  const [filter, setFilter] = useState<'all' | 'year'>('all');
+  const [filter, setFilter] = useState<'all' | 'year' | 'month'>('all');
   const [allSpecies, setAllSpecies] = useState<SpeciesStat[]>([]);
   const [yearSpecies, setYearSpecies] = useState<Set<string>>(new Set());
+  const [monthSpecies, setMonthSpecies] = useState<Set<string>>(new Set());
   const [totalRecords, setTotalRecords] = useState(0);
   const [firstSeen, setFirstSeen] = useState<string | null>(null);
   const [activeMilestone, setActiveMilestone] = useState<number | null>(null);
 
   const tileWidth = (width - space.md * 2 - TILE_GAP * (TILE_COLS - 1)) / TILE_COLS;
+
+  const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
+  useEffect(() => {
+    if (filterParam === 'month' || filterParam === 'year' || filterParam === 'all') {
+      setFilter(filterParam);
+    }
+  }, [filterParam]);
 
   useEffect(() => {
     if (!state.patch) return;
@@ -50,11 +59,13 @@ export default function YourPatch() {
     Promise.all([
       getPatchSpeciesWithCounts(db, patchId),
       getPatchSpecies(db, patchId, CURRENT_YEAR),
+      getMonthSpeciesList(db, patchId, CURRENT_YEAR, CURRENT_MONTH),
       getAllTimeSightingsCount(db, patchId),
       getFirstSightingDate(db, patchId),
-    ]).then(async ([all, year, records, first]) => {
+    ]).then(async ([all, year, month, records, first]) => {
       setAllSpecies(all);
       setYearSpecies(new Set(year));
+      setMonthSpecies(new Set(month));
       setTotalRecords(records);
       setFirstSeen(first);
 
@@ -71,7 +82,9 @@ export default function YourPatch() {
 
   const displaySpecies = filter === 'year'
     ? allSpecies.filter(s => yearSpecies.has(s.species))
-    : allSpecies;
+    : filter === 'month'
+      ? allSpecies.filter(s => monthSpecies.has(s.species))
+      : allSpecies;
 
   const sorted = [...displaySpecies].sort((a, b) => {
     const aAmber = yearSpecies.has(a.species);
@@ -117,11 +130,11 @@ export default function YourPatch() {
       </View>
       <View style={styles.filterBar}>
         <Pressable
-          style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
-          onPress={() => setFilter('all')}
+          style={[styles.filterPill, filter === 'month' && styles.filterPillActive]}
+          onPress={() => setFilter('month')}
         >
-          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-            All time
+          <Text style={[styles.filterText, filter === 'month' && styles.filterTextActive]}>
+            This month
           </Text>
         </Pressable>
         <Pressable
@@ -130,6 +143,14 @@ export default function YourPatch() {
         >
           <Text style={[styles.filterText, filter === 'year' && styles.filterTextActive]}>
             {CURRENT_YEAR}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
+          onPress={() => setFilter('all')}
+        >
+          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+            All time
           </Text>
         </Pressable>
       </View>

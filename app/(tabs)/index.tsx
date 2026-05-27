@@ -30,7 +30,7 @@ import { usePatch } from '@/context/PatchContext';
 import type { ToastPayload } from '@/context/PatchContext';
 import {
   getYearSpeciesCount, getAllTimeSpeciesCount, getMonthSpeciesCount,
-  getRecentSightings,
+  getRecentSightings, getLastVisit,
 } from '@/db/database';
 import type { Sighting } from '@/db/database';
 import { formatDate } from '@/utils/format';
@@ -93,6 +93,7 @@ export default function PatchHome() {
   const [allTimeCount, setAllTimeCount] = useState(0);
   const [monthSpeciesCount, setMonthSpeciesCount] = useState(0);
   const [recentSightings, setRecentSightings] = useState<Sighting[]>([]);
+  const [lastVisit, setLastVisit] = useState<{ date: string; speciesCount: number } | null>(null);
 
   const [homeSky] = useState(skyForSighting);
   const [isNight] = useState(() => timeOfDayFromHour(new Date().getHours()) === 'night');
@@ -105,16 +106,18 @@ export default function PatchHome() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const [yc, atc, mc, recent] = await Promise.all([
+    const [yc, atc, mc, recent, lv] = await Promise.all([
       getYearSpeciesCount(db, state.patch.id, year),
       getAllTimeSpeciesCount(db, state.patch.id),
       getMonthSpeciesCount(db, state.patch.id, year, month),
       getRecentSightings(db, state.patch.id),
+      getLastVisit(db, state.patch.id),
     ]);
     setYearCount(yc);
     setAllTimeCount(atc);
     setMonthSpeciesCount(mc);
     setRecentSightings(recent);
+    setLastVisit(lv);
   }, [state.patch?.id]);
 
   useFocusEffect(
@@ -145,6 +148,18 @@ export default function PatchHome() {
   const todaySightings = useMemo(() => recentSightings.filter(s => isToday(s.seen_at)), [recentSightings]);
   const earlierSightings = useMemo(() => recentSightings.filter(s => !isToday(s.seen_at)), [recentSightings]);
   const todaySpeciesCount = useMemo(() => new Set(todaySightings.map(s => s.species)).size, [todaySightings]);
+
+  function formatLastVisit(dateStr: string): string {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (date.getTime() === yesterday.getTime()) return 'Yesterday';
+    const diffMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffDays < 7) return date.toLocaleDateString('en-GB', { weekday: 'long' });
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+  }
 
   function toastMessage(payload: ToastPayload): string {
     if (payload.type === 'logged') return `${payload.species} logged`;
@@ -196,19 +211,37 @@ export default function PatchHome() {
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <View style={styles.statBox}>
+        <Pressable
+          style={styles.statBox}
+          onPress={() => router.push('/(tabs)/poster?filter=month')}
+        >
           <Text style={styles.statNumber}>{monthSpeciesCount}</Text>
           <Text style={styles.statLabel}>This month</Text>
-        </View>
-        <View style={styles.statBox}>
+        </Pressable>
+        <Pressable
+          style={styles.statBox}
+          onPress={() => router.push('/(tabs)/poster?filter=year')}
+        >
           <Text style={styles.statNumber}>{yearCount}</Text>
           <Text style={styles.statLabel}>This year</Text>
-        </View>
-        <View style={styles.statBox}>
+        </Pressable>
+        <Pressable
+          style={styles.statBox}
+          onPress={() => router.push('/(tabs)/poster?filter=all')}
+        >
           <Text style={styles.statNumber}>{allTimeCount}</Text>
           <Text style={styles.statLabel}>All time</Text>
-        </View>
+        </Pressable>
       </View>
+
+      {/* Last visit anchor */}
+      {lastVisit !== null && (
+        <View style={styles.lastVisitRow}>
+          <Text style={styles.lastVisitText}>
+            Last visit: {formatLastVisit(lastVisit.date)} · {lastVisit.speciesCount} species
+          </Text>
+        </View>
+      )}
 
       {/* Species today */}
       {todaySpeciesCount > 0 && (
@@ -264,7 +297,7 @@ export default function PatchHome() {
       )}
     </>
     );
-  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length, top]);
+  }, [state.patch?.name, state.patch?.radius_km, state.userName, yearCount, allTimeCount, monthSpeciesCount, todaySightings, earlierSightings, todaySpeciesCount, recentSightings.length, lastVisit, top]);
 
 
   return (
@@ -341,9 +374,13 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    paddingVertical: space.md,
+    paddingVertical: space.lg,
     alignItems: 'center',
     gap: space.xs,
+    backgroundColor: colors.white,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.parchmentBorder,
   },
   statNumber: { ...t.statLarge },
   statLabel: { ...t.label },
@@ -423,6 +460,18 @@ const styles = StyleSheet.create({
     ...t.label,
     color: colors.amber,
     marginBottom: space.md,
+  },
+
+  lastVisitRow: {
+    paddingHorizontal: space.lg,
+    paddingVertical: space.xs + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.parchmentBorder,
+    alignItems: 'center',
+  },
+  lastVisitText: {
+    ...t.meta,
+    color: colors.inkFaint,
   },
 
   emptyState: {

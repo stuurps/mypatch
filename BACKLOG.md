@@ -51,6 +51,13 @@ Patch is the only birding app about one specific place, not one specific species
 - Crossover users who also submit to eBird feel locked out of their own data by JSON-only export. CSV is the smallest fix. B21.
 - The app's quietness is explicitly valued — Birda's social layer and eBird's "form for someone else" feeling were both named as frustrations. Patch's non-competitive positioning is a genuine differentiator, not a gap.
 
+**Wave 4 — May 2026 (4 simulated personas — casual garden birder, regular patch watcher, serious lister, nature journaller):**
+- The stat boxes on home are trusted but static — tapping the numbers and having nothing happen is the clearest navigation gap in the app. The numbers want to be destinations. B26.
+- "Last visit" is the missing temporal anchor: users know they were at the patch recently but the app doesn't reflect that rhythm back without scrolling. B27.
+- Visit count (distinct days) surfaced independently as a distinct commitment measure — different from species count or record count. "I show up" is a real fact worth surfacing quietly. B28.
+- Journal and sightings remain two tools cohabiting. B20 (compose) and B30 (read view) together close both halves of that gap without a data model rethink.
+- The poster is named for the third consecutive wave as "the thing I'd show someone" — its emotional role as the proud accumulation moment is confirmed across all persona types.
+
 **Recurring signals across all waves:**
 - Milestone moments matter, but must not feel like achievement badges or gamification
 - Users want the app to accumulate quietly and reward them with a sense of richness, not urgency
@@ -71,6 +78,8 @@ Ordered by priority. Build the top item next.
 | B21 | CSV export | — | XS | Adds CSV as a second format alongside the existing JSON export in Settings. Columns: date, species, count, time of day, conditions, notes, patch name. Piggybacks entirely on the Task 28 `getAllSightings` infrastructure — no new DB work. Serves crossover users who also submit to eBird or want a spreadsheet. |
 | B2 | User name in onboarding | Task 21 ✅ | S | "Personal above all" — opens warm personalisation throughout app |
 | B3 | Month stats on home | Task 23 ✅ | S | "X species this month" — small count, immediate value, quick win |
+| B26 | Stat drill-down | — | XS | Tapping a home screen stat box (This month / This year / All time) navigates to the filtered species list for that period. The numbers are already meaningful — they should be destinations. No new infrastructure; hooks into the existing species list with a period filter. |
+| B27 | Last visit anchor | — | XS | A quiet line on the home screen showing when you last logged here and how many species. "Last visit: Tuesday · 6 species." Memory framing, not a countdown. One query (most recent sighting date + count for that day). Works from day 1. |
 
 ---
 
@@ -84,6 +93,9 @@ Ordered by priority. Top items are closest to being pulled into Now.
 | B22 | Species records by month + residency context | M | On the species detail page, add a compact monthly breakdown — 12 months with your record count for each (dash if zero). Alongside this, show a residency label: "summer visitor / winter visitor / resident / passage migrant" derived from a new `residency` field in `data/species.ts`. The label gives context for the monthly pattern — your Swallow records clustering in Apr–Sep make sense immediately when you can see "summer visitor". For new users, even one May sighting gets biological framing. Requires adding `residency` to all 194 species in `data/species.ts` (small data work) and a new month-by-month DB query on species detail. The beginning of personal phenology — your own data against the bird's biology. |
 | B19 | Journal keyword search | S | Search bar on the journal tab that filters entries by keyword. Works on prose body only. Entry point: search input above the entry list, collapsed until tapped. Zero config — works on day 1 even with a single entry. Named independently by two Wave 3 personas with no shared context (serious lister and nature journaller). |
 | B20 | Today's sightings in journal compose | S | When opening the journal compose screen on a day where sightings have been logged, show a quiet read-only reference strip at the top: "You logged today: Robin · Kingfisher · 2 Coots." Not editable, not part of the saved entry — just context while writing. Prevents the "retyping my list into the journal" friction. No data model change; no tagging. Distinct from B10. |
+| B28 | Visit count stat | S | Track and display the number of distinct calendar days with ≥1 sighting — "47 visits" alongside species/record counts. Placement (poster hero vs. home stats row) needs one scoping pass. A different measure of commitment than species count: the one that says "I show up." |
+| B29 | Backdated journal entry | S | Date picker in the journal compose screen so you can set the entry date to when you were actually out — not when you're writing. Lets the reflective writer work at their own pace. Main scoping question: how backdating affects the Today/Yesterday section grouping in the entry list. |
+| B30 | Sightings strip in journal read view | S | When reading a past journal entry, a quiet strip shows what you logged on the same date: "You logged: Robin · Kingfisher · 2 Coots." Same date-lookup infrastructure as B20. Closes the loop between the data layer and the narrative layer — B20 is the compose half, B30 is the read half. |
 | B14 | Quick re-log | M | Regular patch visitors see the same birds daily. "Log again" shortcut from species detail or recent sightings list — reduces the daily logging habit to two taps. Entry point: button on species detail page + long-press on a sighting row. |
 | B4 | Session summary | Task 22 ✅ | M | After logging one or more sightings: a quiet closing moment before leaving the log screen. Not a report card — a punctuation mark. "Today at Fowlmere: Robin · Kingfisher · 2 Coots." Warm and brief. |
 | B5 | Milestone callouts on poster | Task 29 ✅ | S | On reaching 10, 25, 50 species at a patch: a quiet one-time callout in the hero — not a badge, not a streak. Something worth marking, said once. |
@@ -126,5 +138,5 @@ Ordered by pull-forward likelihood — top items are closest to being promoted t
 
 ---
 
-*Backlog version: 1.4 — May 2026*
+*Backlog version: 1.5 — May 2026*
 *Read alongside: WORKFLOW.md, TASKS.md, patch-project-context.md*

@@ -1036,5 +1036,45 @@ Redesigned the log screen around the primary use case: one bird, done in seconds
 
 ---
 
-*Tasks version: 2.6 — May 2026*
+## Task 33 — Stat drill-down + last visit anchor ✅
+
+**B26 — Stat drill-down:** The three stat boxes on the home screen (This month / This year / All time) now navigate to the species poster filtered to the corresponding period. The numbers were already meaningful; they are now destinations.
+
+**B27 — Last visit anchor:** A quiet line below the stats row shows when you last logged at the patch and how many species. "Last visit: Tuesday · 6 species." Hidden when no prior visit exists (first day, or only logged today).
+
+**Design decisions:**
+- **All time stat box → poster with `filter=all`**: same result as the existing "Your list" link, but discoverable via the stat.
+- **This year → `filter=year`**: existing year filter on poster, now reachable from home.
+- **This month → `filter=month`**: new filter mode on poster; fetches `getMonthSpeciesList` alongside existing queries.
+- **Last visit query excludes today**: `date(seen_at, 'localtime') < date('now', 'localtime')` — so the line shows the previous visit, not the current session.
+- **formatLastVisit**: "Yesterday" for yesterday, weekday name within 6 days, "1 June" for older dates. All parsing uses local date components to avoid UTC-midnight offset bugs.
+- **Poster filter order**: This month · This year · All time — matches left-to-right stat box order on home.
+
+**`db/database.ts`:**
+- [x] `getMonthSpeciesList(db, patchId, year, month)` — DISTINCT species for a given month
+- [x] `getLastVisit(db, patchId)` — most recent calendar day with sightings, excluding today; returns `{ date, speciesCount }`
+
+**`app/(tabs)/poster.tsx`:**
+- [x] Import `useLocalSearchParams` from `expo-router`
+- [x] Import `getMonthSpeciesList` from database
+- [x] Add `CURRENT_MONTH` constant
+- [x] Add `monthSpecies: Set<string>` state
+- [x] `useEffect([filterParam])` — syncs URL `filter` param to local filter state
+- [x] `getMonthSpeciesList` added to data-loading Promise.all
+- [x] `displaySpecies` handles `'month'` case
+- [x] Three filter pills: This month · This year · All time
+
+**`app/(tabs)/index.tsx`:**
+- [x] Import `getLastVisit` from database
+- [x] `lastVisit` state; populated in `loadData()` Promise.all
+- [x] `formatLastVisit(dateStr)` helper — local date parse, Yesterday / weekday / "D Month"
+- [x] Stat boxes changed from `View` to `Pressable` with `router.push` to poster with filter param
+- [x] Last visit row rendered between stats row and today bar; hidden when `lastVisit === null`
+- [x] `lastVisit` added to `listHeader` useMemo dependency array
+
+**Done when:** Tapping a stat box opens the poster on the correct filter. Last visit line appears below the stats when prior visit data exists. Poster "This month" pill shows this month's species.
+
+---
+
+*Tasks version: 2.7 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*
