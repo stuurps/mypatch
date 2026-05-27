@@ -48,12 +48,16 @@ export default function LogSighting() {
   const [loggedSpeciesSet, setLoggedSpeciesSet] = useState<Set<string>>(new Set());
   const [sessionSpecies, setSessionSpecies] = useState<{ species: string; count: number }[]>([]);
   const [showSummary, setShowSummary] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [sessionMode, setSessionMode] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const speciesInputRef = useRef<TextInput>(null);
   const titleOpacity = useRef(new Animated.Value(1)).current;
   const [titleText, setTitleText] = useState('Log a sighting');
   const [titleIsNew, setTitleIsNew] = useState(false);
   const confTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoNavTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,8 +72,12 @@ export default function LogSighting() {
       setConditions(lastConditions);
       setSessionSpecies([]);
       setShowSummary(false);
+      setShowDetails(false);
+      setSessionMode(false);
+      setConfirming(false);
       setIsFocused(false);
       if (confTimer.current) clearTimeout(confTimer.current);
+      if (autoNavTimer.current) clearTimeout(autoNavTimer.current);
       setTitleText('Log a sighting');
       setTitleIsNew(false);
       titleOpacity.setValue(1);
@@ -78,6 +86,12 @@ export default function LogSighting() {
         'SELECT DISTINCT species FROM sightings WHERE patch_id = ?',
         state.patch.id,
       ).then(rows => setLoggedSpeciesSet(new Set(rows.map(r => r.species))));
+      setTimeout(() => speciesInputRef.current?.focus(), 100);
+
+      return () => {
+        if (confTimer.current) clearTimeout(confTimer.current);
+        if (autoNavTimer.current) clearTimeout(autoNavTimer.current);
+      };
     }, [state.patch?.id]),
   );
 
@@ -101,7 +115,7 @@ export default function LogSighting() {
   const sessionSet = new Set(sessionSpecies.map(s => s.species));
 
   const results = query.length >= 2 && !selectedSpecies
-    ? rankSpecies(query, sessionSet, loggedSpeciesSet, PHENOLOGY, 8)
+    ? rankSpecies(query, sessionSet, loggedSpeciesSet, PHENOLOGY, 5)
     : [];
 
   const showFreeText = query.length >= 2 && !selectedSpecies &&
@@ -126,13 +140,21 @@ export default function LogSighting() {
   function selectSpecies(species: string) {
     setSelectedSpecies(species);
     setQuery(species);
+    Keyboard.dismiss();
+  }
+
+  function detailsSummaryText(): string {
+    const timeLabels: Record<TimeOfDay, string> = { dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
+    const parts: string[] = [timeLabels[timeOfDay]];
+    if (conditions) parts.push(conditions.charAt(0).toUpperCase() + conditions.slice(1));
+    if (notes.trim()) parts.push('+ note');
+    return parts.join(' · ');
   }
 
   async function handleAdd() {
     if (!selectedSpecies || !state.patch) return;
 
     const isNew = !(await hasSpeciesBeenLogged(db, state.patch.id, selectedSpecies));
-
     const now = new Date().toISOString();
     const sighting: Sighting = {
       id: ExpoCrypto.randomUUID(),
@@ -143,7 +165,7 @@ export default function LogSighting() {
       seen_at: seenAt.toISOString(),
       created_at: now,
       time_of_day: timeOfDay,
-      conditions: conditions,
+      conditions,
     };
 
     await insertSighting(db, sighting);
@@ -153,9 +175,7 @@ export default function LogSighting() {
 
     setSessionSpecies(prev => {
       const existing = prev.find(s => s.species === addedSpecies);
-      if (existing) {
-        return prev.map(s => s.species === addedSpecies ? { ...s, count: s.count + addedCount } : s);
-      }
+      if (existing) return prev.map(s => s.species === addedSpecies ? { ...s, count: s.count + addedCount } : s);
       return [...prev, { species: addedSpecies, count: addedCount }];
     });
     setLoggedSpeciesSet(prev => new Set([...prev, addedSpecies]));
@@ -167,6 +187,7 @@ export default function LogSighting() {
     }
     showConf(addedSpecies, isNew);
     Keyboard.dismiss();
+
     const now2 = new Date();
     setQuery('');
     setSelectedSpecies(null);
@@ -175,17 +196,37 @@ export default function LogSighting() {
     setSeenAt(now2);
     setShowDatePicker(false);
     setTimeOfDay(timeOfDayFromHour(now2.getHours()));
-    setTimeout(() => speciesInputRef.current?.focus(), 200);
+    setShowDetails(false);
+
+    if (!sessionMode) {
+      setConfirming(true);
+      autoNavTimer.current = setTimeout(() => {
+        setConfirming(false);
+        router.navigate('/(tabs)');
+      }, 1800);
+    }
   }
 
-  const canAdd = !!selectedSpecies;
+  function handleLogAnother() {
+    if (autoNavTimer.current) clearTimeout(autoNavTimer.current);
+    setConfirming(false);
+    setSessionMode(true);
+    setTimeout(() => speciesInputRef.current?.focus(), 100);
+  }
+
+  function handleDone() {
+    if (sessionSpecies.length > 1) {
+      setShowSummary(true);
+    } else {
+      router.navigate('/(tabs)');
+    }
+  }
 
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header */}
       <View style={[styles.header, { paddingTop: top + space.sm }]}>
         <Pressable style={styles.backBtn} onPress={() => router.navigate('/(tabs)')}>
           <Text style={styles.backChevron}>‹</Text>
@@ -193,21 +234,31 @@ export default function LogSighting() {
         <Animated.Text style={[styles.headerTitle, titleIsNew && styles.headerTitleConf, { opacity: titleOpacity }]}>
           {titleText}
         </Animated.Text>
-        <View style={{ width: 36 }} />
+        {sessionMode ? (
+          <Pressable style={styles.doneBtn} onPress={handleDone}>
+            <Text style={styles.doneBtnText}>Done</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 48 }} />
+        )}
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + space.lg }]}
+        contentContainerStyle={[styles.content, { paddingBottom: bottom + space.xl }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Species */}
-        <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Species</Text>
+        {sessionMode && sessionSpecies.length > 0 && (
+          <Text style={styles.sessionTally}>
+            {sessionSpecies.map(s => s.count > 1 ? `${s.count} ${s.species}` : s.species).join(' · ')}
+          </Text>
+        )}
+
+        <View style={styles.speciesSection}>
           <TextInput
             ref={speciesInputRef}
-            style={styles.input}
+            style={styles.speciesInput}
             value={query}
             onChangeText={text => {
               setQuery(text);
@@ -215,7 +266,7 @@ export default function LogSighting() {
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="Start typing…"
+            placeholder="Species…"
             placeholderTextColor={colors.inkFaint}
             autoCorrect={false}
             autoCapitalize="words"
@@ -224,7 +275,7 @@ export default function LogSighting() {
             <View style={styles.dropdown}>
               {zeroQuerySuggestions.map((species, i) => {
                 const hint = getHint(species);
-                const isLast = i === zeroQuerySuggestions.length - 1;
+                const isLast = i === zeroQuerySuggestions.length - 1 && !results.length && !showFreeText;
                 return (
                   <Pressable
                     key={species}
@@ -232,32 +283,26 @@ export default function LogSighting() {
                     onPress={() => selectSpecies(species)}
                   >
                     <Text style={styles.dropdownSpecies}>{species}</Text>
-                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>
-                      {hint.text}
-                    </Text>
+                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>{hint.text}</Text>
                   </Pressable>
                 );
               })}
               {results.map((species, i) => {
                 const hint = getHint(species);
+                const isLast = i === results.length - 1 && !showFreeText;
                 return (
                   <Pressable
                     key={species}
-                    style={[styles.dropdownItem, (i < results.length - 1 || showFreeText) && styles.dropdownItemBorder]}
+                    style={[styles.dropdownItem, !isLast && styles.dropdownItemBorder]}
                     onPress={() => selectSpecies(species)}
                   >
                     <Text style={styles.dropdownSpecies}>{species}</Text>
-                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>
-                      {hint.text}
-                    </Text>
+                    <Text style={[styles.dropdownHint, hint.accent && styles.dropdownHintAccent]}>{hint.text}</Text>
                   </Pressable>
                 );
               })}
               {showFreeText && (
-                <Pressable
-                  style={styles.dropdownItem}
-                  onPress={() => selectSpecies(query.trim())}
-                >
+                <Pressable style={styles.dropdownItem} onPress={() => selectSpecies(query.trim())}>
                   <Text style={styles.dropdownSpecies}>{query.trim()}</Text>
                   <Text style={styles.dropdownHint}>not in list</Text>
                 </Pressable>
@@ -266,123 +311,95 @@ export default function LogSighting() {
           )}
         </View>
 
-        {/* Count + Date row */}
-        <View style={styles.countDateRow}>
-          <View style={styles.countSection}>
-            <Text style={styles.fieldLabel}>Count</Text>
-            <View style={styles.stepper}>
-              <Pressable
-                style={[styles.stepBtn, count <= 1 && styles.stepBtnDim]}
-                onPress={() => setCount(c => Math.max(1, c - 1))}
-              >
-                <Text style={styles.stepBtnText}>−</Text>
-              </Pressable>
-              <Text style={styles.stepCount}>{count}</Text>
-              <Pressable style={styles.stepBtn} onPress={() => setCount(c => c + 1)}>
-                <Text style={styles.stepBtnText}>+</Text>
-              </Pressable>
-            </View>
+        {selectedSpecies && (
+          <View style={styles.countRow}>
+            <Pressable
+              style={[styles.stepBtn, count <= 1 && styles.stepBtnDim]}
+              onPress={() => setCount(c => Math.max(1, c - 1))}
+            >
+              <Text style={styles.stepBtnText}>−</Text>
+            </Pressable>
+            <Text style={styles.stepCount}>{count}</Text>
+            <Pressable style={styles.stepBtn} onPress={() => setCount(c => c + 1)}>
+              <Text style={styles.stepBtnText}>+</Text>
+            </Pressable>
           </View>
+        )}
 
-          <View style={styles.dateSection}>
-            <Text style={styles.fieldLabel}>Date</Text>
-            {Platform.OS === 'ios' ? (
+        {selectedSpecies && (
+          <Pressable style={styles.detailsToggle} onPress={() => setShowDetails(v => !v)}>
+            <Text style={styles.detailsSummary}>{detailsSummaryText()}</Text>
+            <Text style={styles.detailsChevron}>{showDetails ? 'Hide' : 'Details ›'}</Text>
+          </Pressable>
+        )}
+
+        {selectedSpecies && showDetails && (
+          <View style={styles.detailsPanel}>
+            <View style={[styles.detailRow, styles.detailRowH]}>
+              <Text style={styles.detailLabel}>Date</Text>
+              {Platform.OS === 'ios' ? (
+                <DateTimePicker
+                  value={seenAt}
+                  mode="date"
+                  display="compact"
+                  maximumDate={new Date()}
+                  themeVariant="light"
+                  onChange={(_, date) => { if (date) setSeenAt(date); }}
+                />
+              ) : (
+                <Pressable style={styles.datePill} onPress={() => setShowDatePicker(true)}>
+                  <Text style={styles.datePillText}>{formatDateCompact(seenAt)}</Text>
+                </Pressable>
+              )}
+            </View>
+            {Platform.OS === 'android' && showDatePicker && (
               <DateTimePicker
                 value={seenAt}
                 mode="date"
-                display="compact"
+                display="default"
                 maximumDate={new Date()}
-                themeVariant="light"
-                onChange={(_, date) => { if (date) setSeenAt(date); }}
+                onChange={(_, date) => { setShowDatePicker(false); if (date) setSeenAt(date); }}
               />
-            ) : (
-              <Pressable style={styles.datePill} onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.datePillText}>{formatDateCompact(seenAt)}</Text>
-              </Pressable>
             )}
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Time of day</Text>
+              <TimeOfDayPicker value={timeOfDay} onChange={setTimeOfDay} />
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Conditions</Text>
+              <ConditionsPicker
+                value={conditions}
+                onChange={c => { lastConditions = c; setConditions(c); }}
+              />
+            </View>
+            <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
+              <Text style={styles.detailLabel}>Notes</Text>
+              <TextInput
+                style={styles.notesInput}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="e.g. riverside hide, singing male…"
+                placeholderTextColor={colors.inkFaint}
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+            </View>
           </View>
-        </View>
-
-        {/* Android date picker dialog */}
-        {Platform.OS === 'android' && showDatePicker && (
-          <DateTimePicker
-            value={seenAt}
-            mode="date"
-            display="default"
-            maximumDate={new Date()}
-            onChange={(_, date) => {
-              setShowDatePicker(false);
-              if (date) setSeenAt(date);
-            }}
-          />
         )}
 
-        {/* Time of day */}
-        <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Time of day</Text>
-          <TimeOfDayPicker value={timeOfDay} onChange={setTimeOfDay} />
-        </View>
-
-        {/* Conditions */}
-        <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Conditions (optional)</Text>
-          <ConditionsPicker
-            value={conditions}
-            onChange={c => { lastConditions = c; setConditions(c); }}
-          />
-        </View>
-
-        {/* Notes */}
-        <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Notes (optional)</Text>
-          <TextInput
-            style={styles.notesInput}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="e.g. riverside hide, singing male…"
-            placeholderTextColor={colors.inkFaint}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Session tally */}
-        {sessionSpecies.length > 0 && (
-          <Text style={styles.sessionTally}>
-            {sessionSpecies.map(s => s.count > 1 ? `${s.count} ${s.species}` : s.species).join(' · ')}
-          </Text>
-        )}
-
-        {/* CTA */}
-        <Pressable
-          style={[styles.cta, !canAdd && styles.ctaDisabled]}
-          onPress={handleAdd}
-          disabled={!canAdd}
-        >
-          <Text style={styles.ctaText}>
-            {sessionSpecies.length > 0 ? 'Add another sighting' : `Add to ${state.patch?.name ?? 'patch'}`}
-          </Text>
-        </Pressable>
-
-      </ScrollView>
-
-      {sessionSpecies.length > 0 && (
-        <View style={[styles.stickyFooter, { paddingBottom: Math.max(bottom, space.md) }]}>
-          <Pressable
-            style={styles.ctaFinished}
-            onPress={() => {
-              if (sessionSpecies.length > 1) {
-                setShowSummary(true);
-              } else {
-                router.navigate('/(tabs)');
-              }
-            }}
-          >
-            <Text style={styles.ctaText}>Finished</Text>
+        {confirming ? (
+          <Pressable style={styles.logAnotherBtn} onPress={handleLogAnother}>
+            <Text style={styles.logAnotherText}>Log another</Text>
           </Pressable>
-        </View>
-      )}
+        ) : selectedSpecies ? (
+          <Pressable style={styles.cta} onPress={handleAdd}>
+            <Text style={styles.ctaText}>
+              {sessionMode ? 'Add another' : `Add to ${state.patch?.name ?? 'patch'}`}
+            </Text>
+          </Pressable>
+        ) : null}
+      </ScrollView>
 
       {showSummary && state.patch && (
         <SessionSummaryOverlay
@@ -429,55 +446,44 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.white,
   },
-
-  ctaFinished: {
-    backgroundColor: colors.amber,
-    borderRadius: radius.button,
-    paddingVertical: space.md,
-    alignItems: 'center',
-  },
-
-  stickyFooter: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.sm,
-    backgroundColor: colors.parchment,
-    borderTopWidth: 1,
-    borderTopColor: colors.parchmentBorder,
-  },
-
   headerTitleConf: {
     color: colors.amber,
+  },
+  doneBtn: {
+    width: 48,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  doneBtnText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.white,
+  },
+
+  scroll: { flex: 1 },
+  content: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.lg,
+    gap: space.md,
   },
 
   sessionTally: {
     ...t.label,
     color: colors.inkFaint,
     textAlign: 'center',
-    paddingVertical: space.xs,
   },
 
-  scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
-    gap: space.md,
-  },
-
-  fieldBlock: {
+  speciesSection: {
     gap: space.xs,
   },
-  fieldLabel: {
-    ...t.label,
-  },
-
-  input: {
+  speciesInput: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.parchmentBorder,
     borderRadius: radius.card,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    fontSize: 14,
+    paddingVertical: space.md,
+    fontSize: 18,
     color: colors.inkDark,
   },
 
@@ -504,28 +510,17 @@ const styles = StyleSheet.create({
   dropdownHint: { ...t.meta, color: colors.inkMid },
   dropdownHintAccent: { color: colors.amber },
 
-  countDateRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.lg,
-  },
-  countSection: {
-    gap: space.xs,
-  },
-  dateSection: {
-    flex: 1,
-    gap: space.xs,
-  },
-
-  stepper: {
+  countRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    justifyContent: 'center',
+    gap: space.xl,
+    paddingVertical: space.sm,
   },
   stepBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.amber,
     alignItems: 'center',
     justifyContent: 'center',
@@ -534,43 +529,76 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   stepBtnText: {
-    fontSize: 20,
+    fontSize: 22,
     color: colors.white,
-    lineHeight: 24,
+    lineHeight: 26,
     fontWeight: '400',
   },
   stepCount: {
-    fontSize: 22,
+    fontSize: 32,
     fontWeight: '500',
     color: colors.inkDark,
-    minWidth: 28,
+    minWidth: 44,
     textAlign: 'center',
   },
 
-  datePill: {
+  detailsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: space.xs,
+  },
+  detailsSummary: {
+    ...t.meta,
+    color: colors.inkFaint,
+  },
+  detailsChevron: {
+    ...t.meta,
+    color: colors.inkMid,
+  },
+
+  detailsPanel: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.parchmentBorder,
     borderRadius: radius.card,
+    overflow: 'hidden',
+  },
+  detailRow: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
-    alignSelf: 'flex-start',
+    gap: space.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.parchmentBorder,
+  },
+  detailRowH: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 0,
+  },
+  detailLabel: {
+    ...t.label,
+  },
+
+  datePill: {
+    backgroundColor: colors.parchment,
+    borderWidth: 1,
+    borderColor: colors.parchmentBorder,
+    borderRadius: radius.card,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs + 2,
   },
   datePillText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.inkDark,
   },
 
   notesInput: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.parchmentBorder,
-    borderRadius: radius.card,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
     fontSize: 14,
     color: colors.inkDark,
-    minHeight: 56,
+    minHeight: 48,
+    textAlignVertical: 'top',
   },
 
   cta: {
@@ -579,12 +607,19 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     alignItems: 'center',
   },
-  ctaDisabled: {
-    opacity: 0.35,
-  },
   ctaText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.white,
+  },
+
+  logAnotherBtn: {
+    alignItems: 'center',
+    paddingVertical: space.md,
+  },
+  logAnotherText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.amber,
   },
 });

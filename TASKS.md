@@ -1005,5 +1005,36 @@ Fixes the journal list preview so it shows meaningful content rather than a thro
 
 ---
 
-*Tasks version: 2.5 — May 2026*
+## Task 32 — Log screen overhaul ✅
+
+Redesigned the log screen around the primary use case: one bird, done in seconds. The old form treated logging like data entry — scroll to the bottom, hit submit. The new screen removes that friction entirely.
+
+**Design decisions:**
+- **Optimise for one bird:** Screen opens with species input auto-focused and keyboard up. No extra tap needed.
+- **Select → count → add:** After selecting a species the keyboard dismisses, count stepper (centered, large) and CTA appear immediately — everything fits on screen, no scrolling.
+- **Auto-navigate home:** After a single add, a 1.8s timer navigates home automatically. No Finished button needed for the common case.
+- **Log another:** An amber "Log another" text link appears during the 1.8s window. Tapping it cancels the timer and enters session mode.
+- **Session mode:** Once in session mode, "Done" appears in the header right. Session tally builds at the top. Done → summary overlay (if 2+ species) or straight home.
+- **Details collapsed:** Date, time of day, conditions, and notes live behind a "Details ›" toggle. The summary line shows current values ("Day · Clear") so nothing is hidden invisibly. Last-used conditions persist as before.
+- **Removed:** Sticky footer "Finished" button (was hidden by keyboard after auto-focus re-opened it). Auto-focus-after-add (root cause of the keyboard/Finished issue). Disabled CTA state (CTA only appears when species is selected).
+- Species input font size increased to 18px (was 14px) — it's the primary interaction.
+- Dropdown capped at 5 results (was 8) — tighter, less scrolling.
+
+**`app/(tabs)/log.tsx`:**
+- [x] Auto-focus species input on screen mount (100ms delay)
+- [x] `selectSpecies()` now dismisses keyboard on selection
+- [x] Count stepper centered, gap xl, stepCount 32px
+- [x] `showDetails: boolean` state — toggles date/time/conditions/notes panel
+- [x] `detailsSummaryText()` — shows "Day · Clear · + note" beside Details toggle
+- [x] `sessionMode: boolean` — entered via "Log another"; shows tally + Done header
+- [x] `confirming: boolean` — 1.8s post-add window; shows "Log another" amber link
+- [x] `autoNavTimer` ref — cleared on focus cleanup and on "Log another"
+- [x] `useFocusEffect` returns cleanup that clears both timers
+- [x] No auto-focus after add; no sticky footer; no disabled CTA
+
+**Done when:** Tapping + on home auto-focuses species input. Selecting a species dismisses keyboard and shows count + CTA. Tapping Add logs the sighting and auto-navigates home after 1.8s. Tapping "Log another" stays in session mode. Done button and summary overlay work for multi-bird sessions.
+
+---
+
+*Tasks version: 2.6 — May 2026*
 *Read alongside: BRIEF.md and patch-project-context.md*
